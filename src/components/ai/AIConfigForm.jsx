@@ -299,6 +299,61 @@ export function AIConfigForm() {
               <Settings className="w-4 h-4" />
               Configure
             </button>
+
+            {/* Memories & Usage Section (Inside Dashboard) */}
+            <div className="mt-6 pt-6 border-t border-primary/10 space-y-6">
+              <MemoryViewer />
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <RefreshCw
+                      className={`w-4 h-4 text-purple-500 ${loadingUsage ? "animate-spin" : ""}`}
+                    />
+                    Usage & Estimated Costs
+                  </h4>
+                  {usageStats && (
+                    <span className="text-xs text-primary font-bold">
+                      ${usageStats.totalCost.toFixed(4)}
+                    </span>
+                  )}
+                </div>
+
+                {loadingUsage ? (
+                  <div className="h-20 flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 animate-spin text-tertiary" />
+                  </div>
+                ) : usageStats ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-3 rounded-lg bg-white/50 dark:bg-white/5 border dark:border-white/10">
+                      <p className="text-[10px] uppercase tracking-wider text-tertiary mb-1">
+                        Total Calls
+                      </p>
+                      <p className="text-lg font-semibold">
+                        {usageStats.totalCalls}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-white/50 dark:bg-white/5 border dark:border-white/10">
+                      <p className="text-[10px] uppercase tracking-wider text-tertiary mb-1">
+                        Tokens Used
+                      </p>
+                      <p className="text-lg font-semibold">
+                        {Math.round(
+                          (usageStats.totalInputTokens +
+                            usageStats.totalOutputTokens) /
+                            1000
+                        )}
+                        k
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-tertiary italic">
+                    No usage recorded yet.
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -584,64 +639,6 @@ You are a playful, witty companion who uses humor to motivate. You speak like a 
             className="w-full p-3 rounded-lg border dark:border-white/10 bg-transparent text-sm min-h-[80px]"
             placeholder="E.g., Speak like a wise mentor, never mention my calorie counting..."
           />
-        </div>
-
-        {/* Memory Viewer - What I Know About You */}
-        <div className="pt-4 border-t dark:border-white/10">
-          <MemoryViewer />
-        </div>
-
-        {/* Usage Stats Dashboard */}
-        <div className="pt-4 border-t dark:border-white/10 space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium flex items-center gap-2">
-              <RefreshCw
-                className={`w-4 h-4 text-purple-500 ${loadingUsage ? "animate-spin" : ""}`}
-              />
-              Usage & Estimated Costs
-            </h4>
-            {usageStats && (
-              <span className="text-xs text-primary font-bold">
-                ${usageStats.totalCost.toFixed(4)}
-              </span>
-            )}
-          </div>
-
-          {loadingUsage ? (
-            <div className="h-20 flex items-center justify-center">
-              <Loader2 className="w-5 h-5 animate-spin text-tertiary" />
-            </div>
-          ) : usageStats ? (
-            <div className="grid grid-cols-2 gap-2">
-              <div className="p-3 rounded-lg bg-white/50 dark:bg-white/5 border dark:border-white/10">
-                <p className="text-[10px] uppercase tracking-wider text-tertiary mb-1">
-                  Total Calls
-                </p>
-                <p className="text-lg font-semibold">{usageStats.totalCalls}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-white/50 dark:bg-white/5 border dark:border-white/10">
-                <p className="text-[10px] uppercase tracking-wider text-tertiary mb-1">
-                  Tokens Used
-                </p>
-                <p className="text-lg font-semibold">
-                  {Math.round(
-                    (usageStats.totalInputTokens +
-                      usageStats.totalOutputTokens) /
-                      1000
-                  )}
-                  k
-                </p>
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-tertiary italic">
-              No usage recorded yet.
-            </p>
-          )}
-          <p className="text-[10px] text-tertiary leading-relaxed">
-            Costs are estimated based on input and output tokens. Actual charges
-            on your provider dashboard may vary slightly.
-          </p>
         </div>
 
         {/* Status Message */}

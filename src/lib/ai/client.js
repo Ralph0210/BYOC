@@ -150,36 +150,21 @@ export async function callAI(messages, config, options = {}) {
   }
 
   const provider = getProviderById(config.provider)
-
-  // Optimization: Force cheaper models for background tasks (ambient notes, memory extraction)
-  let modelToUse = config.model
-  const isBackground = ["ambient", "memory"].includes(contextType)
-
-  if (isBackground) {
-    const cheapModels = {
-      openai: "gpt-4o-mini",
-      grok: "grok-beta",
-      anthropic: "claude-3-5-sonnet-20241022", // Haiku if available, but sonnet is fast
-      google: "gemini-1.5-flash",
-    }
-    modelToUse = cheapModels[config.provider] || config.model
-  }
-
-  const effectiveConfig = { ...config, model: modelToUse }
+  const modelToUse = config.model
 
   try {
     // Use Anthropic's native API
     if (provider.apiFormat === "anthropic") {
-      return await callAnthropic(messages, effectiveConfig, contextType)
+      return await callAnthropic(messages, config, contextType)
     }
 
     // Use Google's native API
     if (provider.apiFormat === "google") {
-      return await callGoogle(messages, effectiveConfig, contextType)
+      return await callGoogle(messages, config, contextType)
     }
 
     // Use OpenAI SDK for OpenAI-compatible APIs
-    const client = getOpenAIClient(effectiveConfig)
+    const client = getOpenAIClient(config)
     const response = await client.chat.completions.create({
       model: modelToUse || "gpt-4o-mini",
       messages,

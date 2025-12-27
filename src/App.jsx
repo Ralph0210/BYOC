@@ -152,40 +152,44 @@ function App() {
   useEffect(() => {
     if (!config?.api_key || tasks.length === 0) return
 
-    const activeChallenges = challenges.filter((c) => !c.is_archived)
+    // Stagger pre-fetches to avoid hitting rate limits too hard
+    const timer = setTimeout(() => {
+      const activeChallenges = challenges.filter((c) => !c.is_archived)
 
-    activeChallenges.forEach((challenge) => {
-      const challengeTasks = tasks.filter(
-        (t) => t.challenge_id === challenge.id
-      )
+      activeChallenges.forEach((challenge) => {
+        const challengeTasks = tasks.filter(
+          (t) => t.challenge_id === challenge.id
+        )
 
-      challengeTasks.forEach((task) => {
-        // Find last completion date for task
-        const taskCompletions = completions
-          .filter((c) => c.task_id === task.id)
-          .sort((a, b) => b.date.localeCompare(a.date))
+        challengeTasks.forEach((task) => {
+          const taskCompletions = completions
+            .filter((c) => c.task_id === task.id)
+            .sort((a, b) => b.date.localeCompare(a.date))
 
-        const lastCompletedDate = taskCompletions[0]?.date || null
-        const daysSinceLastDone = lastCompletedDate
-          ? Math.floor(
-              (new Date() - new Date(lastCompletedDate)) / (1000 * 60 * 60 * 24)
+          const lastCompletedDate = taskCompletions[0]?.date || null
+          const daysSinceLastDone = lastCompletedDate
+            ? Math.floor(
+                (new Date() - new Date(lastCompletedDate)) /
+                  (1000 * 60 * 60 * 24)
+              )
+            : 999
+
+          if (daysSinceLastDone >= 3) {
+            prefetchAmbientNote(
+              "task",
+              {
+                taskName: task.name,
+                daysSinceLastDone,
+              },
+              config
             )
-          : 999
-
-        // If neglected (3+ days), pre-fetch the note
-        if (daysSinceLastDone >= 3) {
-          prefetchAmbientNote(
-            "task",
-            {
-              taskName: task.name,
-              daysSinceLastDone,
-            },
-            config
-          )
-        }
+          }
+        })
       })
-    })
-  }, [challenges, tasks, completions, config])
+    }, 2000) // Wait 2s after stability to start pre-fetching
+
+    return () => clearTimeout(timer)
+  }, [challenges.length, tasks.length, completions.length, config?.api_key])
 
   // Toggle challenge expanded state
   const toggleChallenge = (challengeId) => {

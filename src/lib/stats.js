@@ -2,6 +2,7 @@ import {
   getDateRange,
   isTaskActiveOnDate,
   calculateCompletionPercentage,
+  daysDiff,
 } from "./utils"
 
 export function calculateChallengeStats(
@@ -38,8 +39,14 @@ export function calculateChallengeStats(
     totalCompleted += taskCompleted
   })
 
+  const today = new Date().toISOString().split("T")[0]
+  const elapsed = daysDiff(challenge.start_date, today) + 1
+  const remaining = Math.max(0, daysDiff(today, challenge.end_date))
+
   return {
     overall: calculateCompletionPercentage(totalCompleted, totalPossible),
+    daysElapsed: elapsed,
+    daysRemaining: remaining,
     byTask,
   }
 }

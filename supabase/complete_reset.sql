@@ -357,4 +357,33 @@ CREATE TRIGGER update_ai_conversations_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- ===========================================
+-- STEP 15: CREATE AI AMBIENT NOTES CACHE TABLE
+-- ===========================================
+CREATE TABLE IF NOT EXISTS ai_ambient_notes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  cache_key TEXT NOT NULL,
+  context_type TEXT NOT NULL, -- 'header', 'task', etc.
+  note TEXT NOT NULL,
+  context_data JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, cache_key)
+);
+
+-- Enable RLS for ai_ambient_notes
+ALTER TABLE ai_ambient_notes ENABLE ROW LEVEL SECURITY;
+
+-- Policies for ai_ambient_notes
+CREATE POLICY "Users can manage own ambient notes" ON ai_ambient_notes
+  FOR ALL USING (auth.uid() = user_id);
+
+-- Apply updated_at trigger
+CREATE TRIGGER update_ai_ambient_notes_updated_at
+    BEFORE UPDATE ON ai_ambient_notes
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- ===========================================
+
 

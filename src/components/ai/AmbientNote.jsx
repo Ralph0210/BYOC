@@ -12,15 +12,21 @@ export function AmbientNote({ challenge, tasks, completions, onClick }) {
   // Build context data for header note
   const contextData = challenge
     ? {
+        challengeId: challenge.id,
         challengeName: challenge.name,
-        daysElapsed: Math.floor(
-          (new Date() - new Date(challenge.start_date)) / (1000 * 60 * 60 * 24)
-        ),
-        totalDays: Math.floor(
-          (new Date(challenge.end_date) - new Date(challenge.start_date)) /
-            (1000 * 60 * 60 * 24)
-        ),
+        daysElapsed:
+          Math.floor(
+            (new Date() - new Date(challenge.start_date)) /
+              (1000 * 60 * 60 * 24)
+          ) + 1,
+        totalDays:
+          Math.floor(
+            (new Date(challenge.end_date) - new Date(challenge.start_date)) /
+              (1000 * 60 * 60 * 24)
+          ) + 1,
+        // REMOVED bucketing: the user wants to see refreshes on task completion
         progress: calculateProgress(challenge, tasks, completions),
+        completionsCount: completions?.length || 0, // Add this to force refresh on completion
         trend: calculateTrend(tasks, completions),
       }
     : null
@@ -29,24 +35,31 @@ export function AmbientNote({ challenge, tasks, completions, onClick }) {
 
   if (!config?.api_key) return null
 
-  if (loading) {
-    return (
-      <div className="flex items-center gap-1.5 mt-2 text-xs text-tertiary animate-pulse">
-        <Sparkles className="w-3 h-3" />
-        <span className="italic">Thinking...</span>
-      </div>
-    )
-  }
-
-  if (!note) return null
-
+  // If we have a note but are loading a new one, show the note with a subtle pulse/indicator
+  // rather than wiping it out and showing "Thinking..."
   return (
     <div
       onClick={onClick}
-      className={`flex items-start gap-1.5 mt-2 text-xs text-secondary ${onClick ? "cursor-pointer hover:text-primary transition-colors" : ""}`}
+      className={`relative group mt-2 text-xs transition-all ${onClick ? "cursor-pointer" : ""}`}
     >
-      <Sparkles className="w-3 h-3 text-primary shrink-0 mt-0.5" />
-      <span className="italic leading-relaxed">{note}</span>
+      <div className="flex items-start gap-1.5">
+        <Sparkles
+          className={`w-3 h-3 shrink-0 mt-0.5 transition-colors ${loading ? "text-primary animate-pulse" : "text-primary"}`}
+        />
+        <div className="flex flex-col">
+          {note ? (
+            <span
+              className={`italic leading-relaxed transition-opacity ${loading ? "opacity-60" : "opacity-100"}`}
+            >
+              {note}
+            </span>
+          ) : loading ? (
+            <span className="italic text-tertiary animate-pulse">
+              Thinking...
+            </span>
+          ) : null}
+        </div>
+      </div>
     </div>
   )
 }
@@ -73,7 +86,17 @@ export function TaskAmbientNote({ task, lastCompletedDate }) {
 
   const { note, loading } = useAmbientNotes("task", contextData)
 
-  if (!config?.api_key || loading || !note) return null
+  if (!config?.api_key || !note) {
+    if (loading) {
+      return (
+        <p className="text-[10px] text-tertiary italic mt-1 flex items-center gap-1 animate-pulse">
+          <Sparkles className="w-2 h-2" />
+          Thinking...
+        </p>
+      )
+    }
+    return null
+  }
 
   return (
     <p className="text-xs text-tertiary italic mt-1 flex items-center gap-1">
@@ -187,10 +210,20 @@ export function PerfectDayNote() {
 
 // Helper functions
 function calculateProgress(challenge, tasks, completions) {
-  if (!tasks?.length) return 0
-  const total = tasks.length * 100
-  const done = completions?.length || 0
-  return Math.round((done / total) * 100)
+  if (!tasks?.length || !challenge?.start_date || !challenge?.end_date) return 0
+
+  // Total expected completions for the entire challenge duration
+  const startDate = new Date(challenge.start_date)
+  const endDate = new Date(challenge.end_date)
+  const durationDays = Math.max(
+    1,
+    Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))
+  )
+
+  const totalExpected = tasks.length * durationDays
+  const actualDone = completions?.length || 0
+
+  return Math.min(100, Math.round((actualDone / totalExpected) * 100))
 }
 
 function calculateTrend(tasks, completions) {
