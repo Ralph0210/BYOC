@@ -24,9 +24,8 @@ export function ChallengeCard({
 
   const daysRemaining = useMemo(() => {
     if (!challenge.end_date) return null
-    const diff = daysDiff(today, challenge.end_date)
     if (challenge.end_date < today) return 0
-    return diff
+    return daysDiff(today, challenge.end_date) + 1
   }, [challenge.end_date, today])
 
   const isCompleted = daysRemaining === 0 || challenge.end_date < today

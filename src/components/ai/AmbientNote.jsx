@@ -1,6 +1,7 @@
 import { useAmbientNotes } from "../../hooks/useAmbientNotes"
 import { useAIConfig } from "../../hooks/useAIConfig"
 import { Sparkles } from "lucide-react"
+import { parseDate, daysDiff } from "../../lib/utils"
 
 /**
  * Header Ambient Note - shown on challenge cards
@@ -14,16 +15,8 @@ export function AmbientNote({ challenge, tasks, completions, onClick }) {
     ? {
         challengeId: challenge.id,
         challengeName: challenge.name,
-        daysElapsed:
-          Math.floor(
-            (new Date() - new Date(challenge.start_date)) /
-              (1000 * 60 * 60 * 24)
-          ) + 1,
-        totalDays:
-          Math.floor(
-            (new Date(challenge.end_date) - new Date(challenge.start_date)) /
-              (1000 * 60 * 60 * 24)
-          ) + 1,
+        daysElapsed: daysDiff(challenge.start_date, new Date()) + 1,
+        totalDays: daysDiff(challenge.start_date, challenge.end_date) + 1,
         // REMOVED bucketing: the user wants to see refreshes on task completion
         progress: calculateProgress(challenge, tasks, completions),
         completionsCount: completions?.length || 0, // Add this to force refresh on completion
@@ -212,12 +205,10 @@ export function PerfectDayNote() {
 function calculateProgress(challenge, tasks, completions) {
   if (!tasks?.length || !challenge?.start_date || !challenge?.end_date) return 0
 
-  // Total expected completions for the entire challenge duration
-  const startDate = new Date(challenge.start_date)
-  const endDate = new Date(challenge.end_date)
+  // Total expected completions for the entire challenge duration (inclusive)
   const durationDays = Math.max(
     1,
-    Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))
+    daysDiff(challenge.start_date, challenge.end_date) + 1
   )
 
   const totalExpected = tasks.length * durationDays

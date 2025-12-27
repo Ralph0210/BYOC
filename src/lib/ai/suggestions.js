@@ -65,18 +65,21 @@ export function buildSuggestionsContext(challenge, tasks, completions, today) {
   if (!challenge) return {}
 
   const todayStr = today || new Date().toISOString().split("T")[0]
-  const startDate = new Date(challenge.start_date)
-  const endDate = new Date(challenge.end_date)
-  const currentDate = new Date(todayStr)
 
-  const daysElapsed = Math.floor(
-    (currentDate - startDate) / (1000 * 60 * 60 * 24)
-  )
-  const daysRemaining = Math.floor(
-    (endDate - currentDate) / (1000 * 60 * 60 * 24)
-  )
+  // Use simple date math to avoid timezone issues
+  const startMs = new Date(challenge.start_date + "T00:00:00").getTime()
+  const endMs = new Date(challenge.end_date + "T00:00:00").getTime()
+  const todayMs = new Date(todayStr + "T00:00:00").getTime()
+
+  const daysElapsed =
+    Math.floor((todayMs - startMs) / (1000 * 60 * 60 * 24)) + 1
+  const daysRemaining =
+    todayMs <= endMs
+      ? Math.floor((endMs - todayMs) / (1000 * 60 * 60 * 24)) + 1
+      : 0
 
   // Calculate week completion rate
+  const currentDate = new Date(todayStr + "T00:00:00")
   const weekStart = new Date(currentDate)
   weekStart.setDate(weekStart.getDate() - 7)
 

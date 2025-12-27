@@ -571,7 +571,7 @@ function App() {
             const isExpanded = expandedChallenges[challenge.id]
             const daysRemaining =
               challenge.end_date >= today
-                ? daysDiff(today, challenge.end_date)
+                ? daysDiff(today, challenge.end_date) + 1
                 : 0
 
             // Today's Progress

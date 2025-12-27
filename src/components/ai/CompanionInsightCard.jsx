@@ -4,7 +4,7 @@ import { useAIConfig } from "../../hooks/useAIConfig"
 import { useAmbientNotes } from "../../hooks/useAmbientNotes"
 import { Card } from "../ui/Card"
 import { Button } from "../ui/Button"
-import { cn } from "../../lib/utils"
+import { cn, daysDiff } from "../../lib/utils"
 import { calculateChallengeStats } from "../../lib/stats"
 
 /**
@@ -25,16 +25,8 @@ export function CompanionInsightCard({
     ? {
         challengeId: challenge.id,
         challengeName: challenge.name,
-        daysElapsed:
-          Math.floor(
-            (new Date() - new Date(challenge.start_date)) /
-              (1000 * 60 * 60 * 24)
-          ) + 1,
-        totalDays:
-          Math.floor(
-            (new Date(challenge.end_date) - new Date(challenge.start_date)) /
-              (1000 * 60 * 60 * 24)
-          ) + 1,
+        daysElapsed: daysDiff(challenge.start_date, new Date()) + 1,
+        totalDays: daysDiff(challenge.start_date, challenge.end_date) + 1,
         progress: calculateProgress(challenge, tasks, completions),
         completionsCount: completions?.length || 0,
         trend: calculateTrend(tasks, completions),

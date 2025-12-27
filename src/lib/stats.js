@@ -41,7 +41,8 @@ export function calculateChallengeStats(
 
   const today = new Date().toISOString().split("T")[0]
   const elapsed = daysDiff(challenge.start_date, today) + 1
-  const remaining = Math.max(0, daysDiff(today, challenge.end_date))
+  const remaining =
+    today <= challenge.end_date ? daysDiff(today, challenge.end_date) + 1 : 0
 
   return {
     overall: calculateCompletionPercentage(totalCompleted, totalPossible),

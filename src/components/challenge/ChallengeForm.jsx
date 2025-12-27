@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Calendar, Gift, ExternalLink } from "lucide-react"
 import { Button } from "../ui/Button"
-import { formatDate, addDays } from "../../lib/utils"
+import { formatDate, addDays, parseDate } from "../../lib/utils"
 
 export function ChallengeForm({ challenge, onSubmit, onCancel }) {
   const today = formatDate(new Date())
@@ -25,15 +25,17 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
 
       // Auto-calculate end_date when duration changes
       if (field === "duration_days" && prev.use_duration) {
-        const startDate = new Date(prev.start_date)
-        newData.end_date = formatDate(addDays(startDate, value - 1))
+        // Use parseDate to avoid timezone issues with date strings
+        newData.end_date = formatDate(
+          addDays(parseDate(prev.start_date), value - 1)
+        )
       }
 
       // Auto-calculate end_date when start_date changes
       if (field === "start_date" && prev.use_duration) {
-        const startDate = new Date(value)
+        // Use parseDate to avoid timezone issues with date strings
         newData.end_date = formatDate(
-          addDays(startDate, prev.duration_days - 1)
+          addDays(parseDate(value), prev.duration_days - 1)
         )
       }
 
@@ -72,7 +74,10 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
         start_date: formData.start_date,
         end_date: formData.use_duration
           ? formatDate(
-              addDays(new Date(formData.start_date), formData.duration_days - 1)
+              addDays(
+                parseDate(formData.start_date),
+                formData.duration_days - 1
+              )
             )
           : formData.end_date,
         duration_days: formData.use_duration ? formData.duration_days : null,
