@@ -220,6 +220,7 @@ CREATE TABLE IF NOT EXISTS ai_config (
   personality_preset TEXT DEFAULT 'warm_encourager',
   personality_customizations JSONB DEFAULT '{}',
   custom_instructions TEXT,
+  custom_personality_prompt TEXT,
   companion_name TEXT,
   companion_photo_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -241,6 +242,41 @@ CREATE POLICY "Users can update own ai_config" ON ai_config
   FOR UPDATE USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete own ai_config" ON ai_config
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- ===========================================
+-- STEP 11: CREATE AI MEMORIES TABLE
+-- ===========================================
+CREATE TABLE IF NOT EXISTS ai_memories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  memory_type TEXT NOT NULL CHECK (memory_type IN ('preference', 'pattern', 'fact', 'style', 'conversation')),
+  content TEXT NOT NULL,
+  context TEXT,
+  confidence DECIMAL DEFAULT 0.8,
+  source TEXT NOT NULL CHECK (source IN ('explicit', 'inferred', 'behavioral', 'conversation')),
+  last_referenced TIMESTAMPTZ,
+  times_referenced INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ,
+  UNIQUE(user_id, content)
+);
+
+CREATE INDEX IF NOT EXISTS idx_memories_user ON ai_memories(user_id);
+
+ALTER TABLE ai_memories ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own memories" ON ai_memories
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own memories" ON ai_memories
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own memories" ON ai_memories
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own memories" ON ai_memories
   FOR DELETE USING (auth.uid() = user_id);
 
 -- ===========================================

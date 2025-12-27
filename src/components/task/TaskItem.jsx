@@ -2,6 +2,7 @@ import { useMemo } from "react"
 import * as LucideIcons from "lucide-react"
 import { Edit2, Trash2, Plus, Minus, Check } from "lucide-react"
 import { cn } from "../../lib/utils"
+import { TaskAmbientNote } from "../ai/AmbientNote"
 
 export function TaskItem({
   task,
@@ -12,6 +13,8 @@ export function TaskItem({
   onDelete,
   date,
   disabled = false,
+  lastCompletedDate = null,
+  onAmbientClick = null,
 }) {
   // Get the icon component
   const Icon = useMemo(() => {
@@ -88,6 +91,19 @@ export function TaskItem({
           <p className="text-sm text-tertiary truncate mt-1">
             {task.description}
           </p>
+        )}
+
+        {/* AI Ambient Note for neglected tasks */}
+        {!isComplete && (
+          <div
+            onClick={onAmbientClick ? () => onAmbientClick(task) : undefined}
+            className={onAmbientClick ? "cursor-pointer hover:opacity-80" : ""}
+          >
+            <TaskAmbientNote
+              task={task}
+              lastCompletedDate={lastCompletedDate}
+            />
+          </div>
         )}
 
         {/* Counter Controls (Only if count > 1) */}

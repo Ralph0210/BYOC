@@ -2,6 +2,11 @@ import { render, screen, fireEvent } from "@testing-library/react"
 import { describe, it, expect, vi } from "vitest"
 import { TaskItem } from "./TaskItem"
 
+// Mock the AI components that require auth context
+vi.mock("../ai/AmbientNote", () => ({
+  TaskAmbientNote: () => null, // Return null to skip rendering
+}))
+
 describe("TaskItem", () => {
   const task = {
     id: "t1",

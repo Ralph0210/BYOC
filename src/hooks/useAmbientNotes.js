@@ -33,19 +33,30 @@ export function useAmbientNotes(contextType, contextData) {
     setLoading(true)
 
     try {
-      // Build context-specific prompt
+      // Build context-specific prompt - more specific and actionable
       const contextPrompts = {
-        header: `Generate a brief 1-sentence ambient note for the user's challenge header. Challenge: "${contextData.challengeName}", Day ${contextData.daysElapsed} of ${contextData.totalDays}, ${contextData.progress}% complete. Recent trend: ${contextData.trend || "stable"}.`,
+        header: `Write a brief 1-sentence ambient note for: "${contextData.challengeName}", Day ${contextData.daysElapsed}/${contextData.totalDays}, ${contextData.progress}% complete. Be observational, not cheerleader-y. Example: "Day 12. You've found your groove this week."`,
 
-        task: `Generate a brief nudge (max 10 words) for a task that hasn't been done in ${contextData.daysSinceLastDone} days. Task: "${contextData.taskName}". Be curious, not pushy.`,
+        task: `A task called "${contextData.taskName}" hasn't been done in ${contextData.daysSinceLastDone} days.
 
-        summary: `Generate a brief end-of-day summary (1-2 sentences). Today: ${contextData.completedToday}/${contextData.targetToday} tasks done. ${contextData.missedTasks?.length > 0 ? `Missed: ${contextData.missedTasks.join(", ")}` : "All done!"}`,
+Write a SHORT, warm encouragement (4-10 words). Follow your personality:
+- Warm Encourager: gentle, supportive, believes in them
+- Direct Coach: simple nudge, no fluff
+- Curious Friend: light, friendly 
+- Quiet Supporter: minimal but present
 
-        empty: `Generate a brief encouraging message (max 15 words) for a user who has no tasks scheduled today. Keep it light.`,
+Good examples: "You've got this one", "Small step today?", "Ready when you are", "This one's waiting for you"
 
-        return: `Generate a warm welcome-back message (1-2 sentences) for a user returning after ${contextData.daysAway} days. Be supportive, no guilt. Offer to continue or start fresh.`,
+NEVER guilt-trip or use "should", "need to", "don't forget".
+Just the encouragement, no quotes.`,
 
-        calendar: `Generate a very brief celebration (max 8 words) for a perfect day where all tasks were completed.`,
+        summary: `Write 1-2 sentences summarizing today: ${contextData.completedToday}/${contextData.targetToday} tasks done. ${contextData.missedTasks?.length > 0 ? `Skipped: ${contextData.missedTasks.join(", ")}` : "All completed."}. Be matter-of-fact, acknowledge what was done. Follow your personality.`,
+
+        empty: `Write a brief message (max 12 words) for someone with no tasks today. Keep it light—could be about rest, or asking if they want to add something. No exclamation points.`,
+
+        return: `Write 1-2 sentences welcoming someone back after ${contextData.daysAway} days away. Be warm, zero guilt. Maybe ask if they want to continue or start fresh.`,
+
+        calendar: `Write 3-5 words celebrating a perfect day (all tasks done). Keep it understated. Examples: "Solid day.", "Clean sweep.", "That's all of them."`,
       }
 
       const userPrompt = contextPrompts[contextType] || contextPrompts.header

@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from "react"
 import { useAIConfig } from "../../hooks/useAIConfig"
 import { PERSONALITY_PRESETS } from "../../lib/ai/personalities"
 import { PROVIDERS } from "../../lib/ai/providers"
-import { listModels } from "../../lib/ai/client"
+import { listModels, testConnection } from "../../lib/ai/client"
+import { clearAmbientCache } from "../../hooks/useAmbientNotes"
 import { PersonalityPicker } from "./PersonalityPicker"
+import { MemoryViewer } from "./MemoryViewer"
 import { supabase } from "../../lib/supabase"
 import {
   Sparkles,
@@ -17,6 +19,7 @@ import {
   Camera,
   X,
   Loader2,
+  Zap,
 } from "lucide-react"
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2MB
@@ -31,6 +34,7 @@ export function AIConfigForm() {
   const [availableModels, setAvailableModels] = useState([])
   const [isEditing, setIsEditing] = useState(true)
   const [photoPreview, setPhotoPreview] = useState(null)
+  const [testing, setTesting] = useState(false)
   const fileInputRef = useRef(null)
 
   const [formData, setFormData] = useState({
@@ -96,32 +100,54 @@ export function AIConfigForm() {
         throw new Error("Please sign in to upload a photo")
       }
 
-      // Generate unique filename
-      const fileExt = file.name.split(".").pop()
-      const fileName = `companion_${user.id}_${Date.now()}.${fileExt}`
-      const filePath = `companion-avatars/${fileName}`
+      let photoUrl = null
 
-      // Upload to Supabase Storage
-      const { data, error } = await supabase.storage
-        .from("avatars")
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: true,
+      try {
+        // Try to upload to Supabase Storage
+        const fileExt = file.name.split(".").pop()
+        const timestamp = Date.now()
+        const fileName = `companion_${user.id}_${timestamp}.${fileExt}`
+        const filePath = `companion-avatars/${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+          .from("avatars")
+          .upload(filePath, file, {
+            cacheControl: "0",
+            upsert: true,
+          })
+
+        if (!uploadError) {
+          // Get public URL with cache-busting
+          const { data: urlData } = supabase.storage
+            .from("avatars")
+            .getPublicUrl(filePath)
+          photoUrl = `${urlData.publicUrl}?t=${timestamp}`
+        } else {
+          console.warn(
+            "Storage upload failed, using Data URL fallback:",
+            uploadError
+          )
+        }
+      } catch (storageErr) {
+        console.warn("Storage error, using Data URL fallback:", storageErr)
+      }
+
+      // Fallback: Convert to Data URL if storage failed
+      if (!photoUrl) {
+        photoUrl = await new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result)
+          reader.readAsDataURL(file)
         })
+      }
 
-      if (error) throw error
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(filePath)
-
+      // Update form data (don't auto-save, user will tap Save)
       setFormData((prev) => ({
         ...prev,
-        companion_photo_url: urlData.publicUrl,
+        companion_photo_url: photoUrl,
       }))
-      setPhotoPreview(urlData.publicUrl)
-      setMessage({ type: "success", text: "Photo uploaded!" })
+      setPhotoPreview(photoUrl)
+      setMessage({ type: "success", text: "Photo ready! Tap Save to apply." })
     } catch (err) {
       console.error("Upload error:", err)
       setMessage({
@@ -175,6 +201,8 @@ export function AIConfigForm() {
     setMessage(null)
     try {
       await updateConfig(formData)
+      // Clear ambient cache so new personality takes effect immediately
+      clearAmbientCache()
       setMessage({ type: "success", text: "Settings saved successfully." })
       setTimeout(() => setIsEditing(false), 800)
     } catch (err) {
@@ -400,6 +428,26 @@ export function AIConfigForm() {
                 Get key <ExternalLink className="w-3 h-3" />
               </a>
             )}
+            {formData.provider === "anthropic" && (
+              <a
+                href="https://console.anthropic.com/settings/keys"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary flex items-center gap-1 hover:underline"
+              >
+                Get key <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+            {formData.provider === "google" && (
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary flex items-center gap-1 hover:underline"
+              >
+                Get key <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
           </div>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -422,6 +470,25 @@ export function AIConfigForm() {
               {showKey ? "Hide" : "Show"}
             </button>
           </div>
+          {/* Test Connection Button */}
+          <button
+            type="button"
+            onClick={async () => {
+              setTesting(true)
+              setMessage(null)
+              const result = await testConnection(formData)
+              setTesting(false)
+              setMessage({
+                type: result.success ? "success" : "error",
+                text: result.success ? "Connection successful!" : result.error,
+              })
+            }}
+            disabled={!formData.api_key || testing}
+            className="mt-2 text-xs text-primary hover:underline disabled:opacity-50 flex items-center gap-1"
+          >
+            <Zap className={`w-3 h-3 ${testing ? "animate-pulse" : ""}`} />
+            {testing ? "Testing..." : "Test Connection"}
+          </button>
         </div>
 
         {/* Model */}
@@ -467,6 +534,31 @@ export function AIConfigForm() {
           />
         </div>
 
+        {/* Custom Personality Prompt - only shows when "custom" is selected */}
+        {formData.personality_preset === "custom" && (
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Custom Personality Prompt
+            </label>
+            <textarea
+              value={formData.custom_personality_prompt || ""}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  custom_personality_prompt: e.target.value,
+                })
+              }
+              className="w-full p-3 rounded-lg border dark:border-white/10 bg-transparent text-sm min-h-[120px]"
+              placeholder={`Describe your companion's personality. Example:
+
+You are a playful, witty companion who uses humor to motivate. You speak like a supportive friend who happens to be really into productivity. You use casual language, occasional jokes, and never take things too seriously.`}
+            />
+            <p className="text-xs text-tertiary mt-1">
+              Define how your companion should think, speak, and behave.
+            </p>
+          </div>
+        )}
+
         {/* Custom Instructions */}
         <div>
           <label className="block text-sm font-medium mb-1">
@@ -480,6 +572,11 @@ export function AIConfigForm() {
             className="w-full p-3 rounded-lg border dark:border-white/10 bg-transparent text-sm min-h-[80px]"
             placeholder="E.g., Speak like a wise mentor, never mention my calorie counting..."
           />
+        </div>
+
+        {/* Memory Viewer - What I Know About You */}
+        <div className="pt-4 border-t dark:border-white/10">
+          <MemoryViewer />
         </div>
 
         {/* Status Message */}

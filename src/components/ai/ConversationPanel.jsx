@@ -1,6 +1,10 @@
-import { useRef, useEffect } from "react"
+import { useRef, useEffect, useMemo } from "react"
 import { useConversation } from "../../hooks/useConversation"
 import { useAIConfig } from "../../hooks/useAIConfig"
+import {
+  getSuggestedPrompts,
+  buildSuggestionsContext,
+} from "../../lib/ai/suggestions"
 import { X, Send, User, Sparkles } from "lucide-react"
 import { cn } from "../../lib/utils"
 
@@ -17,6 +21,12 @@ export function ConversationPanel({ challenge, tasks, completions, onClose }) {
   const companionName = config?.companion_name || "Companion"
   const companionPhoto = config?.companion_photo_url
 
+  // Generate suggested prompts based on context
+  const suggestedPrompts = useMemo(() => {
+    const context = buildSuggestionsContext(challenge, tasks, completions)
+    return getSuggestedPrompts(context)
+  }, [challenge, tasks, completions])
+
   // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
@@ -30,6 +40,10 @@ export function ConversationPanel({ challenge, tasks, completions, onClose }) {
     if (!content) return
     sendMessage(content)
     inputRef.current.value = ""
+  }
+
+  const handleSuggestionClick = (prompt) => {
+    sendMessage(prompt)
   }
 
   const CompanionAvatar = ({ size = "md" }) => {
@@ -142,6 +156,21 @@ export function ConversationPanel({ challenge, tasks, completions, onClose }) {
           </div>
         )}
       </div>
+
+      {/* Suggested Prompts */}
+      {hasKey && messages.length <= 2 && !generating && (
+        <div className="px-4 pb-2 flex flex-wrap gap-2">
+          {suggestedPrompts.map((prompt, i) => (
+            <button
+              key={i}
+              onClick={() => handleSuggestionClick(prompt)}
+              className="text-xs px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Input */}
       <form
