@@ -1,19 +1,45 @@
-import { useState, useEffect, useCallback } from "react"
+import {
+  useState,
+  useEffect,
+  useCallback,
+  createContext,
+  useContext,
+} from "react"
 import { supabase } from "../lib/supabase"
 import { useAuth } from "./useAuth"
 import { encryptApiKey, decryptApiKey } from "../lib/crypto"
 
+// Create a context for sharing AI config state across components
+const AIConfigContext = createContext(null)
+
+// Singleton state for sharing across all hook instances
+let sharedConfig = null
+let sharedLoading = true
+let sharedError = null
+const listeners = new Set()
+
+function notifyListeners() {
+  listeners.forEach((listener) => listener())
+}
+
 export function useAIConfig() {
   const { user } = useAuth()
-  const [config, setConfig] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [, forceUpdate] = useState({})
+
+  // Subscribe to shared state changes
+  useEffect(() => {
+    const listener = () => forceUpdate({})
+    listeners.add(listener)
+    return () => listeners.delete(listener)
+  }, [])
 
   const fetchConfig = useCallback(async () => {
     if (!user) return
 
     try {
-      setLoading(true)
+      sharedLoading = true
+      notifyListeners()
+
       const { data, error } = await supabase
         .from("ai_config")
         .select("*")
@@ -32,20 +58,20 @@ export function useAIConfig() {
         decryptedConfig = { ...data, api_key: decryptedKey }
       }
 
-      setConfig(
-        decryptedConfig || {
-          provider: "openai",
-          model: "gpt-4o-mini",
-          personality_preset: "warm_encourager",
-          personality_customizations: {},
-          custom_instructions: "",
-        }
-      )
+      sharedConfig = decryptedConfig || {
+        provider: "openai",
+        model: "gpt-4o-mini",
+        personality_preset: "warm_encourager",
+        personality_customizations: {},
+        custom_instructions: "",
+      }
+      sharedError = null
     } catch (err) {
       console.error("Error fetching AI config:", err)
-      setError(err)
+      sharedError = err
     } finally {
-      setLoading(false)
+      sharedLoading = false
+      notifyListeners()
     }
   }, [user])
 
@@ -55,7 +81,7 @@ export function useAIConfig() {
     }
 
     try {
-      setError(null)
+      sharedError = null
 
       // Encrypt API key before storing
       const encryptedApiKey = newConfig.api_key
@@ -88,13 +114,15 @@ export function useAIConfig() {
 
       if (error) throw error
 
-      // Store decrypted version in state for immediate use
+      // Store decrypted version in shared state for immediate use by ALL components
       const decryptedData = { ...data, api_key: newConfig.api_key }
-      setConfig(decryptedData)
+      sharedConfig = decryptedData
+      notifyListeners() // Notify all components to re-render with new config
       return decryptedData
     } catch (err) {
       console.error("Error updating AI config:", err)
-      setError(err)
+      sharedError = err
+      notifyListeners()
       throw err
     }
   }
@@ -103,7 +131,14 @@ export function useAIConfig() {
     fetchConfig()
   }, [fetchConfig])
 
-  const hasKey = Boolean(config?.api_key)
+  const hasKey = Boolean(sharedConfig?.api_key)
 
-  return { config, loading, error, updateConfig, refetch: fetchConfig, hasKey }
+  return {
+    config: sharedConfig,
+    loading: sharedLoading,
+    error: sharedError,
+    updateConfig,
+    refetch: fetchConfig,
+    hasKey,
+  }
 }
