@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { supabase } from "../lib/supabase"
 import { useAuth } from "./useAuth"
+import { encryptApiKey, decryptApiKey } from "../lib/crypto"
 
 export function useAIConfig() {
   const { user } = useAuth()
@@ -24,8 +25,15 @@ export function useAIConfig() {
         throw error
       }
 
+      // Decrypt API key if it exists
+      let decryptedConfig = data
+      if (data?.api_key) {
+        const decryptedKey = await decryptApiKey(data.api_key, user.id)
+        decryptedConfig = { ...data, api_key: decryptedKey }
+      }
+
       setConfig(
-        data || {
+        decryptedConfig || {
           provider: "openai",
           model: "gpt-4o-mini",
           personality_preset: "warm_encourager",
@@ -49,11 +57,16 @@ export function useAIConfig() {
     try {
       setError(null)
 
+      // Encrypt API key before storing
+      const encryptedApiKey = newConfig.api_key
+        ? await encryptApiKey(newConfig.api_key, user.id)
+        : null
+
       // Build the upsert payload
       const payload = {
         user_id: user.id,
         provider: newConfig.provider,
-        api_key: newConfig.api_key,
+        api_key: encryptedApiKey,
         model: newConfig.model,
         personality_preset: newConfig.personality_preset,
         custom_instructions: newConfig.custom_instructions || null,
@@ -74,8 +87,11 @@ export function useAIConfig() {
         .single()
 
       if (error) throw error
-      setConfig(data)
-      return data
+
+      // Store decrypted version in state for immediate use
+      const decryptedData = { ...data, api_key: newConfig.api_key }
+      setConfig(decryptedData)
+      return decryptedData
     } catch (err) {
       console.error("Error updating AI config:", err)
       setError(err)
