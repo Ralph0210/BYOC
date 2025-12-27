@@ -37,9 +37,18 @@ export function useChallenges() {
     setError(null)
 
     try {
+      // Get the current authenticated user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        throw new Error("You must be logged in to create a challenge")
+      }
+
       const { data, error: createError } = await supabase
         .from("challenges")
-        .insert([challengeData])
+        .insert([{ ...challengeData, user_id: user.id }])
         .select()
         .single()
 
