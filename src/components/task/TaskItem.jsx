@@ -160,6 +160,7 @@ export function TaskItem({
       <button
         onClick={handleClick}
         disabled={disabled}
+        aria-label="Toggle completion status"
         className={cn(
           "relative flex-shrink-0 focus:outline-none rounded-full ml-2",
           disabled && "cursor-not-allowed opacity-50"

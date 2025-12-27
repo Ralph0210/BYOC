@@ -38,6 +38,7 @@ import {
   formatDate,
   cn,
 } from "./lib/utils"
+import { calculateChallengeStats } from "./lib/stats"
 
 function App() {
   // Initialize theme
@@ -140,42 +141,9 @@ function App() {
   // Calculate completion stats for a challenge
   const getCompletionStats = useCallback(
     (challenge, challengeTasks) => {
-      if (!challenge || !challengeTasks || challengeTasks.length === 0) {
-        return { overall: 0, byTask: {} }
-      }
-
-      const endDate = challenge.end_date
-      const dateRange = getDateRange(challenge.start_date, endDate)
-      const byTask = {}
-      let totalPossible = 0
-      let totalCompleted = 0
-
-      challengeTasks.forEach((task) => {
-        let taskTotal = 0
-        let taskCompleted = 0
-
-        dateRange.forEach((date) => {
-          if (isTaskActiveOnDate(task, date)) {
-            const target = task.frequency_count || 1
-            taskTotal += target
-            taskCompleted += Math.min(
-              getCompletionCountForTask(task.id, date),
-              target
-            )
-          }
-        })
-
-        byTask[task.id] = { completed: taskCompleted, total: taskTotal }
-        totalPossible += taskTotal
-        totalCompleted += taskCompleted
-      })
-
-      return {
-        overall: calculateCompletionPercentage(totalCompleted, totalPossible),
-        byTask,
-      }
+      return calculateChallengeStats(challenge, challengeTasks, completions)
     },
-    [getCompletionCountForTask, today]
+    [completions]
   )
 
   // Handle task completion
