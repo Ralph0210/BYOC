@@ -87,166 +87,180 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Challenge Name */}
-      <div>
-        <label className="block text-sm font-medium text-secondary mb-2">
-          Challenge Name
-        </label>
-        <input
-          type="text"
-          value={formData.name}
-          onChange={(e) => handleChange("name", e.target.value)}
-          placeholder="e.g., Morning Routine"
-          className="w-full px-4 py-3 rounded-xl bg-surface-light dark:bg-gray-800 border border-app focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
-        />
-        {errors.name && (
-          <p className="mt-1 text-sm text-task-red">{errors.name}</p>
-        )}
-      </div>
+      {/* Hero Section: Name & Description */}
+      <div className="space-y-3">
+        <div>
+          <input
+            type="text"
+            value={formData.name}
+            onChange={(e) => handleChange("name", e.target.value)}
+            placeholder="Name your challenge..."
+            className="w-full text-2xl font-bold bg-transparent border-none p-0 focus:ring-0 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none text-primary"
+            autoFocus
+          />
+          {errors.name && (
+            <p className="mt-1 text-sm text-task-red">{errors.name}</p>
+          )}
+        </div>
 
-      {/* Description */}
-      <div>
-        <label className="block text-sm font-medium text-secondary mb-2">
-          Description (optional)
-        </label>
         <textarea
           value={formData.description}
           onChange={(e) => handleChange("description", e.target.value)}
-          placeholder="What is this challenge about?"
+          placeholder="Add a description (optional)..."
           rows={2}
-          className="w-full px-4 py-3 rounded-xl bg-surface-light dark:bg-gray-800 border border-app focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors resize-none"
+          className="w-full text-secondary bg-transparent border-none p-0 focus:ring-0 resize-none outline-none leading-relaxed"
         />
       </div>
 
-      {/* Duration Type Toggle */}
-      <div>
-        <label className="block text-sm font-medium text-secondary mb-2">
-          Duration
-        </label>
-        <div className="flex gap-2 p-1 bg-surface-light dark:bg-gray-800 rounded-xl mb-4">
-          <button
-            type="button"
-            onClick={() => handleChange("use_duration", true)}
-            className={`flex-1 py-2 px-3 text-sm font-medium rounded-lg transition-all duration-150 ${
-              formData.use_duration
-                ? "bg-white dark:bg-gray-700 shadow-sm text-primary"
-                : "text-secondary hover:text-primary"
-            }`}
-          >
-            Days
-          </button>
-          <button
-            type="button"
-            onClick={() => handleChange("use_duration", false)}
-            className={`flex-1 py-2 px-3 text-sm font-medium rounded-lg transition-all duration-150 ${
-              !formData.use_duration
-                ? "bg-white dark:bg-gray-700 shadow-sm text-primary"
-                : "text-secondary hover:text-primary"
-            }`}
-          >
-            Date Range
-          </button>
+      <div className="h-px bg-gray-100 dark:bg-gray-800" />
+
+      {/* Settings Section */}
+      <div className="space-y-6">
+        {/* Duration */}
+        <div>
+          <label className="block text-sm font-medium text-primary mb-3">
+            Duration
+          </label>
+          <div className="flex gap-1 p-1 bg-surface-light dark:bg-gray-800/50 rounded-xl mb-4 border border-app">
+            <button
+              type="button"
+              onClick={() => handleChange("use_duration", true)}
+              className={`flex-1 py-1.5 px-3 text-sm font-medium rounded-lg transition-all duration-150 ${
+                formData.use_duration
+                  ? "bg-white dark:bg-gray-700 shadow-sm text-primary"
+                  : "text-secondary hover:text-primary"
+              }`}
+            >
+              Days
+            </button>
+            <button
+              type="button"
+              onClick={() => handleChange("use_duration", false)}
+              className={`flex-1 py-1.5 px-3 text-sm font-medium rounded-lg transition-all duration-150 ${
+                !formData.use_duration
+                  ? "bg-white dark:bg-gray-700 shadow-sm text-primary"
+                  : "text-secondary hover:text-primary"
+              }`}
+            >
+              Date Range
+            </button>
+          </div>
+
+          {formData.use_duration ? (
+            <div className="space-y-4">
+              {/* Preset Duration Pills */}
+              <div className="flex flex-wrap gap-2">
+                {presetDurations.map((days) => (
+                  <button
+                    key={days}
+                    type="button"
+                    onClick={() => handleChange("duration_days", days)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 border ${
+                      formData.duration_days === days
+                        ? "bg-primary-500 text-white border-primary-500"
+                        : "bg-transparent border-app text-secondary hover:border-primary-500 hover:text-primary"
+                    }`}
+                  >
+                    {days}d
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Duration Input */}
+              <div className="flex items-center gap-3 text-sm text-secondary bg-surface-light dark:bg-gray-800/30 p-3 rounded-xl border border-app">
+                <Calendar className="w-4 h-4 text-tertiary" />
+                <span>Starts</span>
+                <input
+                  type="date"
+                  value={formData.start_date}
+                  onChange={(e) => handleChange("start_date", e.target.value)}
+                  className="bg-transparent border-none p-0 focus:ring-0 text-primary font-medium outline-none"
+                />
+                <span>for</span>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={formData.duration_days}
+                    onChange={(e) =>
+                      handleChange(
+                        "duration_days",
+                        parseInt(e.target.value) || 1
+                      )
+                    }
+                    className="w-12 bg-transparent border-b border-secondary focus:border-primary-500 p-0 text-center text-primary font-medium focus:ring-0 outline-none"
+                  />
+                  <span>days</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Date Range Inputs */
+            <div className="flex items-center gap-3 bg-surface-light dark:bg-gray-800/30 p-3 rounded-xl border border-app">
+              <div className="flex-1">
+                <label className="block text-[10px] uppercase tracking-wider text-tertiary mb-1">
+                  Start
+                </label>
+                <input
+                  type="date"
+                  value={formData.start_date}
+                  onChange={(e) => handleChange("start_date", e.target.value)}
+                  className="w-full bg-transparent border-none p-0 focus:ring-0 text-primary font-medium outline-none text-sm"
+                />
+                {errors.start_date && (
+                  <p className="mt-1 text-xs text-task-red">
+                    {errors.start_date}
+                  </p>
+                )}
+              </div>
+              <span className="text-tertiary">→</span>
+              <div className="flex-1 text-right">
+                <label className="block text-[10px] uppercase tracking-wider text-tertiary mb-1">
+                  End
+                </label>
+                <input
+                  type="date"
+                  value={formData.end_date}
+                  min={formData.start_date}
+                  onChange={(e) => handleChange("end_date", e.target.value)}
+                  className="w-full bg-transparent border-none p-0 focus:ring-0 text-primary font-medium outline-none text-sm text-right"
+                />
+                {errors.end_date && (
+                  <p className="mt-1 text-xs text-task-red">
+                    {errors.end_date}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
-        {formData.use_duration ? (
-          <>
-            {/* Preset Duration Pills */}
-            <div className="flex flex-wrap gap-2 mb-4">
-              {presetDurations.map((days) => (
-                <button
-                  key={days}
-                  type="button"
-                  onClick={() => handleChange("duration_days", days)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-150 ${
-                    formData.duration_days === days
-                      ? "bg-primary-500 text-white"
-                      : "bg-surface-light dark:bg-gray-800 text-secondary hover:text-primary"
-                  }`}
-                >
-                  {days} days
-                </button>
-              ))}
-            </div>
-
-            {/* Custom Duration Input */}
-            <div className="flex items-center gap-3">
-              <Calendar className="w-5 h-5 text-tertiary" />
+        {/* Reward Section */}
+        <div>
+          <label className="flex items-center gap-2 text-sm font-medium text-primary mb-3">
+            <Gift className="w-4 h-4" />
+            Reward
+          </label>
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={formData.reward_text}
+              onChange={(e) => handleChange("reward_text", e.target.value)}
+              placeholder="e.g., New running shoes!"
+              className="w-full px-4 py-3 rounded-xl bg-surface-light dark:bg-gray-800 border border-app focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
+            />
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-surface-light dark:bg-gray-800 border border-app focus-within:ring-1 focus-within:ring-primary-500 focus-within:border-primary-500 transition-colors">
+              <ExternalLink className="w-4 h-4 text-tertiary flex-shrink-0" />
               <input
-                type="number"
-                min="1"
-                max="365"
-                value={formData.duration_days}
-                onChange={(e) =>
-                  handleChange("duration_days", parseInt(e.target.value) || 1)
-                }
-                className="w-20 px-3 py-2 rounded-xl bg-surface-light dark:bg-gray-800 border border-app focus:border-primary-500 outline-none text-center"
+                type="url"
+                value={formData.reward_link}
+                onChange={(e) => handleChange("reward_link", e.target.value)}
+                placeholder="Add a link..."
+                className="flex-1 bg-transparent border-none p-0 focus:ring-0 outline-none text-sm"
               />
-              <span className="text-secondary">days starting</span>
-              <input
-                type="date"
-                value={formData.start_date}
-                onChange={(e) => handleChange("start_date", e.target.value)}
-                className="px-3 py-2 rounded-xl bg-surface-light dark:bg-gray-800 border border-app focus:border-primary-500 outline-none"
-              />
-            </div>
-          </>
-        ) : (
-          /* Date Range Inputs */
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <label className="block text-xs text-tertiary mb-1">Start</label>
-              <input
-                type="date"
-                value={formData.start_date}
-                onChange={(e) => handleChange("start_date", e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-surface-light dark:bg-gray-800 border border-app focus:border-primary-500 outline-none"
-              />
-              {errors.start_date && (
-                <p className="mt-1 text-xs text-task-red">
-                  {errors.start_date}
-                </p>
-              )}
-            </div>
-            <span className="text-tertiary mt-5">→</span>
-            <div className="flex-1">
-              <label className="block text-xs text-tertiary mb-1">End</label>
-              <input
-                type="date"
-                value={formData.end_date}
-                min={formData.start_date}
-                onChange={(e) => handleChange("end_date", e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-surface-light dark:bg-gray-800 border border-app focus:border-primary-500 outline-none"
-              />
-              {errors.end_date && (
-                <p className="mt-1 text-xs text-task-red">{errors.end_date}</p>
-              )}
             </div>
           </div>
-        )}
-      </div>
-
-      {/* Reward Section */}
-      <div className="pt-2 border-t border-app">
-        <label className="flex items-center gap-2 text-sm font-medium text-secondary mb-3">
-          <Gift className="w-4 h-4" />
-          Reward (optional)
-        </label>
-        <input
-          type="text"
-          value={formData.reward_text}
-          onChange={(e) => handleChange("reward_text", e.target.value)}
-          placeholder="e.g., New running shoes!"
-          className="w-full px-4 py-3 rounded-xl bg-surface-light dark:bg-gray-800 border border-app focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors mb-3"
-        />
-        <div className="flex items-center gap-2">
-          <ExternalLink className="w-4 h-4 text-tertiary" />
-          <input
-            type="url"
-            value={formData.reward_link}
-            onChange={(e) => handleChange("reward_link", e.target.value)}
-            placeholder="https://..."
-            className="flex-1 px-4 py-3 rounded-xl bg-surface-light dark:bg-gray-800 border border-app focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
-          />
         </div>
       </div>
 

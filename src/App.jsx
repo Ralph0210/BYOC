@@ -19,7 +19,6 @@ import { ConfirmModal } from "./components/ui/ConfirmModal"
 import { ChallengeForm } from "./components/challenge/ChallengeForm"
 import { ChallengeSummary } from "./components/challenge/ChallengeSummary"
 import { TaskItem } from "./components/task/TaskItem"
-import { ChallengeCard } from "./components/challenge/ChallengeCard"
 import { TaskForm } from "./components/task/TaskForm"
 import { CalendarGrid } from "./components/calendar/CalendarGrid"
 import { useChallenges } from "./hooks/useChallenges"
@@ -145,7 +144,7 @@ function App() {
         return { overall: 0, byTask: {} }
       }
 
-      const endDate = challenge.end_date < today ? challenge.end_date : today
+      const endDate = challenge.end_date
       const dateRange = getDateRange(challenge.start_date, endDate)
       const byTask = {}
       let totalPossible = 0
@@ -171,23 +170,8 @@ function App() {
         totalCompleted += taskCompleted
       })
 
-      // Calculate today's stats separately
-      let todayPossible = 0
-      let todayCompleted = 0
-      challengeTasks.forEach((task) => {
-        if (isTaskActiveOnDate(task, today)) {
-          const target = task.frequency_count || 1
-          todayPossible += target
-          todayCompleted += Math.min(
-            getCompletionCountForTask(task.id, today),
-            target
-          )
-        }
-      })
-
       return {
         overall: calculateCompletionPercentage(totalCompleted, totalPossible),
-        today: calculateCompletionPercentage(todayCompleted, todayPossible),
         byTask,
       }
     },
@@ -535,23 +519,113 @@ function App() {
                 ? daysDiff(today, challenge.end_date)
                 : 0
 
+            // Today's Progress
+            let todayTarget = 0
+            let todayDone = 0
+            challengeTasks.forEach((task) => {
+              if (isTaskActiveOnDate(task, today)) {
+                todayTarget += task.frequency_count || 1
+                const taskCompletions = completions.filter(
+                  (c) => c.task_id === task.id && c.date === today
+                ).length
+                todayDone += Math.min(
+                  taskCompletions,
+                  task.frequency_count || 1
+                )
+              }
+            })
+
             return (
-              <ChallengeCard
-                key={challenge.id}
-                challenge={challenge}
-                taskCount={challengeTasks.length}
-                completionRate={stats.overall}
-                todayRate={stats.today}
-                onClick={() => toggleChallenge(challenge.id)}
-                onEdit={handleEditChallenge}
-                onDelete={handleDeleteChallenge}
-              >
-                {isExpanded && (
-                  <div className="mt-4 pt-4 border-t border-app animate-in slide-in-from-top-2 duration-300">
-                    {renderChallengeContent(challenge)}
+              <Card key={challenge.id} padding="lg" className="overflow-hidden">
+                {/* Challenge Header */}
+                <div
+                  className="flex items-center gap-4 cursor-pointer"
+                  onClick={() => toggleChallenge(challenge.id)}
+                >
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-primary truncate">
+                        {challenge.name}
+                      </h3>
+                      {challenge.reward_text && (
+                        <Gift className="w-4 h-4 text-task-yellow flex-shrink-0" />
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-secondary">
+                      <span>
+                        {challengeTasks.length} task
+                        {challengeTasks.length !== 1 ? "s" : ""}
+                      </span>
+                      <span>•</span>
+                      <span>
+                        {formatDisplayDate(challenge.start_date)} →{" "}
+                        {formatDisplayDate(challenge.end_date)}
+                      </span>
+                      {daysRemaining > 0 && (
+                        <>
+                          <span className="hidden sm:inline">•</span>
+                          <span
+                            className={cn(
+                              daysRemaining <= 3 &&
+                                "text-task-orange font-medium"
+                            )}
+                          >
+                            {daysRemaining}d left
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
-                )}
-              </ChallengeCard>
+
+                  {/* Completion Stats */}
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-primary">
+                      {stats.overall}%
+                    </div>
+                    <div className="text-xs text-tertiary">progress</div>
+                    {todayTarget > 0 ? (
+                      <div className="text-xs font-medium text-primary mt-1">
+                        Today: {todayDone}/{todayTarget}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-tertiary mt-1">No tasks</div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleEditChallenge(challenge)
+                      }}
+                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                    >
+                      <Edit2 className="w-4 h-4 text-tertiary" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteChallenge(challenge.id)
+                      }}
+                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                    >
+                      <Trash2 className="w-4 h-4 text-tertiary hover:text-task-red" />
+                    </button>
+                    {isExpanded ? (
+                      <ChevronUp className="w-5 h-5 text-tertiary" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-tertiary" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Journey Progress Bar */}
+
+                {/* Expanded Content */}
+                {isExpanded && renderChallengeContent(challenge)}
+              </Card>
             )
           })
         ) : (

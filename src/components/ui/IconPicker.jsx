@@ -33,7 +33,7 @@ export function IconPicker({ value, onChange, color = "#007AFF" }) {
           "outline-none transition-colors"
         )}
       />
-      <div className="grid grid-cols-6 gap-2 max-h-48 overflow-y-auto justify-items-center p-2">
+      <div className="grid grid-cols-6 gap-2 max-h-48 overflow-y-auto justify-items-center pt-2">
         {filteredIcons.map((iconName) => {
           const Icon = getIcon(iconName)
           return (

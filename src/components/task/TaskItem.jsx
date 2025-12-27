@@ -1,6 +1,6 @@
 import { useMemo } from "react"
 import * as LucideIcons from "lucide-react"
-import { Edit2, Trash2, Plus, Minus } from "lucide-react"
+import { Edit2, Trash2, Plus, Minus, Check } from "lucide-react"
 import { cn } from "../../lib/utils"
 
 export function TaskItem({
@@ -27,7 +27,7 @@ export function TaskItem({
   const progress = Math.min(completionCount / targetCount, 1)
 
   // Calculate ring properties
-  const size = 44
+  const size = 32
   const strokeWidth = 3
   const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
@@ -62,57 +62,17 @@ export function TaskItem({
         disabled && "opacity-50 cursor-not-allowed"
       )}
     >
-      {/* Completion Button with Progress Ring */}
-      <button
-        onClick={handleClick}
-        disabled={disabled}
-        className={cn(
-          "relative flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-full",
-          disabled && "cursor-not-allowed"
-        )}
-      >
-        {/* Progress Ring */}
-        <svg width={size} height={size} className="progress-ring">
-          {/* Background circle */}
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={strokeWidth}
-            className="text-gray-200 dark:text-gray-700"
-          />
-          {/* Progress circle */}
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={task.color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={circumference * (1 - progress)}
-            className="transition-all duration-300"
-          />
-        </svg>
-
-        {/* Icon in center */}
+      {/* Premium Icon Container (Left) */}
+      <div className="relative w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
         <div
-          className={cn(
-            "absolute inset-0 flex items-center justify-center transition-all duration-200",
-            isComplete && "animate-checkmark"
-          )}
-        >
-          <Icon
-            className="w-5 h-5"
-            style={{
-              color: isComplete ? task.color : "var(--color-text-tertiary)",
-            }}
-          />
-        </div>
-      </button>
+          className="absolute inset-0 opacity-15 transition-colors duration-300"
+          style={{ backgroundColor: task.color }}
+        />
+        <Icon
+          className="w-6 h-6 relative z-10 transition-colors duration-300"
+          style={{ color: task.color }}
+        />
+      </div>
 
       {/* Task Info */}
       <div className="flex-1 min-w-0">
@@ -129,6 +89,8 @@ export function TaskItem({
             {task.description}
           </p>
         )}
+
+        {/* Counter Controls (Only if count > 1) */}
         {targetCount > 1 && (
           <div className="flex items-center gap-3 mt-2">
             <button
@@ -138,16 +100,16 @@ export function TaskItem({
               }}
               disabled={disabled || completionCount === 0}
               className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center",
+                "w-7 h-7 rounded-lg flex items-center justify-center",
                 "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700",
                 "transition-colors active:scale-95",
                 (disabled || completionCount === 0) &&
                   "opacity-40 cursor-not-allowed"
               )}
             >
-              <Minus className="w-4 h-4 text-tertiary" />
+              <Minus className="w-3.5 h-3.5 text-tertiary" />
             </button>
-            <span className="text-sm text-tertiary min-w-[40px] text-center font-medium">
+            <span className="text-xs text-secondary font-medium w-[40px] text-center">
               {completionCount} / {targetCount}
             </span>
             <button
@@ -157,30 +119,30 @@ export function TaskItem({
               }}
               disabled={disabled || completionCount >= targetCount}
               className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center",
+                "w-7 h-7 rounded-lg flex items-center justify-center",
                 "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700",
                 "transition-colors active:scale-95",
                 (disabled || completionCount >= targetCount) &&
                   "opacity-40 cursor-not-allowed"
               )}
             >
-              <Plus className="w-4 h-4 text-tertiary" />
+              <Plus className="w-3.5 h-3.5 text-tertiary" />
             </button>
           </div>
         )}
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+      {/* Actions (Edit/Delete) - Only visible on hover/focus */}
+      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
         <button
           onClick={(e) => {
             e.stopPropagation()
             onEdit(task)
           }}
           aria-label="Edit task"
-          className="p-3 sm:p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-tertiary hover:text-primary"
         >
-          <Edit2 className="w-5 h-5 sm:w-4 sm:h-4 text-tertiary" />
+          <Edit2 className="w-4 h-4" />
         </button>
         <button
           onClick={(e) => {
@@ -188,11 +150,59 @@ export function TaskItem({
             onDelete(task.id)
           }}
           aria-label="Delete task"
-          className="p-3 sm:p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-task-red"
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-tertiary hover:text-task-red"
         >
-          <Trash2 className="w-5 h-5 sm:w-4 sm:h-4 text-tertiary hover:text-task-red" />
+          <Trash2 className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Completion Button (Right) */}
+      <button
+        onClick={handleClick}
+        disabled={disabled}
+        className={cn(
+          "relative flex-shrink-0 focus:outline-none rounded-full ml-2",
+          disabled && "cursor-not-allowed opacity-50"
+        )}
+      >
+        <div
+          className={cn(
+            "relative w-8 h-8 rounded-full border-2 flex items-center justify-center transition-transform active:scale-90",
+            isComplete
+              ? "border-transparent bg-primary-500"
+              : "border-gray-200 dark:border-gray-700 bg-transparent hover:border-primary-500/50"
+          )}
+        >
+          {/* Progress Ring for partial completion */}
+          {!isComplete && completionCount > 0 && (
+            <svg
+              width={32}
+              height={32}
+              className="absolute inset-0 -rotate-90 pointer-events-none"
+            >
+              <circle
+                cx={16}
+                cy={16}
+                r={14}
+                fill="none"
+                stroke={task.color}
+                strokeWidth={2}
+                strokeDasharray={2 * Math.PI * 14}
+                strokeDashoffset={2 * Math.PI * 14 * (1 - progress)}
+                className="transition-all duration-300"
+              />
+            </svg>
+          )}
+
+          {/* Checkmark with Pop Animation */}
+          {isComplete && (
+            <Check
+              className="w-4 h-4 text-white animate-in zoom-in-50 duration-300 spring-bounce"
+              strokeWidth={3}
+            />
+          )}
+        </div>
+      </button>
     </div>
   )
 }

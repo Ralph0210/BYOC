@@ -7,6 +7,7 @@ import {
   getToday,
   getDayOfWeek,
   parseDate,
+  isTaskActiveOnDate,
 } from "../../lib/utils"
 
 export function CalendarGrid({
@@ -122,8 +123,7 @@ export function CalendarGrid({
           {/* Grid with day labels */}
           <div className="flex">
             {/* Day labels (sticky) */}
-            <div className="flex flex-col gap-1 mr-2 sticky left-0 z-10 pr-2">
-              <div className="absolute inset-0 bg-surface dark:bg-gray-800 opacity-95 -z-10" />
+            <div className="flex flex-col gap-1 mr-3 sticky left-0 z-10 bg-white dark:bg-surface-dark pr-1">
               {["M", "T", "W", "T", "F", "S", "S"].map((day, i) => (
                 <div
                   key={i}
@@ -142,11 +142,18 @@ export function CalendarGrid({
                   className="flex flex-col gap-1 flex-shrink-0 snap-start"
                 >
                   {week.map((day, dayIndex) => {
-                    // Get completions for this day
+                    // Get completions and active tasks for this day
                     const dayCompletions = completionsByDate[day.date] || []
+                    const activeTasks = tasks.filter((t) =>
+                      isTaskActiveOnDate(t, day.date)
+                    )
+                    const activeTasksCount = activeTasks.length
+
                     const completedTaskIds = [
                       ...new Set(dayCompletions.map((c) => c.task_id)),
                     ]
+
+                    // Filter colors to only show valid completions (edge case safety)
                     const colors = completedTaskIds
                       .map((id) => taskColors[id])
                       .filter(Boolean)
@@ -156,7 +163,7 @@ export function CalendarGrid({
                         key={day.date}
                         date={day.date}
                         colors={colors}
-                        totalTasks={tasks.length}
+                        totalTasks={activeTasksCount}
                         isToday={day.isToday}
                         isSelected={day.date === selectedDate}
                         isFuture={day.isFuture}

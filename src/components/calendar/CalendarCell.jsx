@@ -1,3 +1,4 @@
+import { Check } from "lucide-react"
 import { cn } from "../../lib/utils"
 
 export function CalendarCell({
@@ -12,8 +13,6 @@ export function CalendarCell({
 }) {
   const completionLevel =
     totalTasks > 0 ? Math.min(colors.length / totalTasks, 1) : 0
-
-  // Determine background style based on completion - just color, no dots
   const isPerfect = totalTasks > 0 && colors.length === totalTasks
 
   // Determine background style
@@ -23,9 +22,10 @@ export function CalendarCell({
     }
 
     if (colors.length === 0) {
-      return { backgroundColor: "var(--color-surface)" }
+      return { backgroundColor: "var(--color-surface-hover)" }
     }
 
+    // Single color
     if (colors.length === 1) {
       return {
         backgroundColor: colors[0],
@@ -33,9 +33,10 @@ export function CalendarCell({
       }
     }
 
-    // Multiple colors - create gradient
+    // Multiple colors - gradient
     return {
       background: `linear-gradient(135deg, ${colors.slice(0, 4).join(", ")})`,
+      opacity: isPerfect ? 1 : 0.4 + completionLevel * 0.4,
     }
   }
 
@@ -44,24 +45,20 @@ export function CalendarCell({
       onClick={onClick}
       disabled={!inRange || isFuture}
       className={cn(
-        "w-8 h-8 rounded-lg transition-all duration-300 relative",
+        "w-8 h-8 rounded-lg transition-all duration-150 flex items-center justify-center relative",
         inRange &&
           !isFuture &&
-          "hover:scale-105 active:scale-95 cursor-pointer",
+          "hover:ring-2 hover:ring-primary-500 hover:ring-offset-1 cursor-pointer",
         !inRange && "opacity-20",
         isFuture && "opacity-30",
         isSelected && "ring-2 ring-primary-600 ring-offset-2 z-10",
-        // Perfect day glow effect
-        isPerfect &&
-          !isFuture &&
-          "ring-2 ring-primary-500/50 ring-offset-1 shadow-sm",
-        !isPerfect && isToday && !isSelected && "ring-1 ring-primary-500/50"
+        isToday && !isSelected && "ring-2 ring-primary-500/50 ring-offset-1"
       )}
       style={getBackgroundStyle()}
-      title={date}
+      title={`${date} - ${Math.round(completionLevel * 100)}%`}
     >
-      {isPerfect && (
-        <div className="absolute inset-0 rounded-lg bg-white/20 animate-pulse" />
+      {isPerfect && !isFuture && inRange && (
+        <Check className="w-4 h-4 text-white drop-shadow-md" strokeWidth={3} />
       )}
     </button>
   )
