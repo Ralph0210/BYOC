@@ -3,6 +3,7 @@ import { useAIConfig } from "../../hooks/useAIConfig"
 import { PERSONALITY_PRESETS } from "../../lib/ai/personalities"
 import { PROVIDERS } from "../../lib/ai/providers"
 import { listModels, testConnection } from "../../lib/ai/client"
+import { getUsageStats } from "../../lib/ai/usage"
 import { clearAmbientCache } from "../../hooks/useAmbientNotes"
 import { PersonalityPicker } from "./PersonalityPicker"
 import { MemoryViewer } from "./MemoryViewer"
@@ -35,6 +36,8 @@ export function AIConfigForm() {
   const [isEditing, setIsEditing] = useState(true)
   const [photoPreview, setPhotoPreview] = useState(null)
   const [testing, setTesting] = useState(false)
+  const [usageStats, setUsageStats] = useState(null)
+  const [loadingUsage, setLoadingUsage] = useState(true)
   const fileInputRef = useRef(null)
 
   const [formData, setFormData] = useState({
@@ -194,6 +197,15 @@ export function AIConfigForm() {
     PROVIDERS.find((p) => p.id === formData.provider)?.models || []
   const currentOptions =
     availableModels.length > 0 ? availableModels : defaultModels
+
+  useEffect(() => {
+    async function fetchStats() {
+      const stats = await getUsageStats()
+      setUsageStats(stats)
+      setLoadingUsage(false)
+    }
+    fetchStats()
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -577,6 +589,59 @@ You are a playful, witty companion who uses humor to motivate. You speak like a 
         {/* Memory Viewer - What I Know About You */}
         <div className="pt-4 border-t dark:border-white/10">
           <MemoryViewer />
+        </div>
+
+        {/* Usage Stats Dashboard */}
+        <div className="pt-4 border-t dark:border-white/10 space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium flex items-center gap-2">
+              <RefreshCw
+                className={`w-4 h-4 text-purple-500 ${loadingUsage ? "animate-spin" : ""}`}
+              />
+              Usage & Estimated Costs
+            </h4>
+            {usageStats && (
+              <span className="text-xs text-primary font-bold">
+                ${usageStats.totalCost.toFixed(4)}
+              </span>
+            )}
+          </div>
+
+          {loadingUsage ? (
+            <div className="h-20 flex items-center justify-center">
+              <Loader2 className="w-5 h-5 animate-spin text-tertiary" />
+            </div>
+          ) : usageStats ? (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-3 rounded-lg bg-white/50 dark:bg-white/5 border dark:border-white/10">
+                <p className="text-[10px] uppercase tracking-wider text-tertiary mb-1">
+                  Total Calls
+                </p>
+                <p className="text-lg font-semibold">{usageStats.totalCalls}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-white/50 dark:bg-white/5 border dark:border-white/10">
+                <p className="text-[10px] uppercase tracking-wider text-tertiary mb-1">
+                  Tokens Used
+                </p>
+                <p className="text-lg font-semibold">
+                  {Math.round(
+                    (usageStats.totalInputTokens +
+                      usageStats.totalOutputTokens) /
+                      1000
+                  )}
+                  k
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-tertiary italic">
+              No usage recorded yet.
+            </p>
+          )}
+          <p className="text-[10px] text-tertiary leading-relaxed">
+            Costs are estimated based on input and output tokens. Actual charges
+            on your provider dashboard may vary slightly.
+          </p>
         </div>
 
         {/* Status Message */}

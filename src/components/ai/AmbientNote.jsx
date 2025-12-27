@@ -194,6 +194,28 @@ function calculateProgress(challenge, tasks, completions) {
 }
 
 function calculateTrend(tasks, completions) {
-  // Simple trend calculation - compare last 3 days vs previous 3
-  return "stable" // Simplified for MVP
+  if (!completions?.length) return "neutral"
+
+  const today = new Date().toISOString().split("T")[0]
+  const last3Days = [0, 1, 2].map((i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    return d.toISOString().split("T")[0]
+  })
+  const prev3Days = [3, 4, 5].map((i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    return d.toISOString().split("T")[0]
+  })
+
+  const last3Count = completions.filter((c) =>
+    last3Days.includes(c.date)
+  ).length
+  const prev3Count = completions.filter((c) =>
+    prev3Days.includes(c.date)
+  ).length
+
+  if (last3Count > prev3Count) return "improving"
+  if (last3Count < prev3Count) return "declining"
+  return "stable"
 }

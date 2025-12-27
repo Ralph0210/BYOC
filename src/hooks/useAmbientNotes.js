@@ -4,7 +4,54 @@ import { buildSystemPrompt } from "../lib/ai/prompts"
 import { useAIConfig } from "./useAIConfig"
 
 // In-memory cache for ambient notes
-const noteCache = new Map()
+export const noteCache = new Map()
+
+/**
+ * Pre-fetch an ambient note and store in cache
+ */
+export async function prefetchAmbientNote(contextType, contextData, config) {
+  if (!config?.api_key || !contextData) return null
+
+  const cacheKey = `${contextType}:${JSON.stringify(contextData).slice(0, 100)}`
+
+  // Check cache first
+  const cached = noteCache.get(cacheKey)
+  if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) {
+    return cached.note
+  }
+
+  try {
+    const contextPrompts = {
+      header: `Write a brief 1-sentence ambient note for: "${contextData.challengeName}", Day ${contextData.daysElapsed}/${contextData.totalDays}, ${contextData.progress}% complete. Be observational, not cheerleader-y. Example: "Day 12. You've found your groove this week."`,
+      task: `A task called "${contextData.taskName}" hasn't been done in ${contextData.daysSinceLastDone} days. Write a SHORT, warm encouragement (4-10 words). Follow personality guidelines.`,
+      summary: `Write 1-2 sentences summarizing today: ${contextData.completedToday}/${contextData.targetToday} tasks done.`,
+      empty: `Write a brief message (max 12 words) for someone with no tasks today.`,
+      return: `Write 1-2 sentences welcoming someone back after ${contextData.daysAway} days away.`,
+      calendar: `Write 3-5 words celebrating a perfect day.`,
+    }
+
+    const userPrompt = contextPrompts[contextType] || contextPrompts.header
+    const systemPrompt = buildSystemPrompt(config, contextData)
+
+    const response = await callAI(
+      [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      config,
+      { contextType: "ambient" }
+    )
+
+    if (response) {
+      const cleanNote = response.replace(/^["']|["']$/g, "").trim()
+      noteCache.set(cacheKey, { note: cleanNote, timestamp: Date.now() })
+      return cleanNote
+    }
+  } catch (err) {
+    console.warn("Prefetch failed:", err)
+  }
+  return null
+}
 
 /**
  * Generate ambient notes for various contexts
@@ -68,7 +115,8 @@ Just the encouragement, no quotes.`,
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        config
+        config,
+        { contextType: "ambient" }
       )
 
       if (response) {

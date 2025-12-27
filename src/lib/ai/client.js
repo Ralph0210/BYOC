@@ -1,5 +1,6 @@
 import OpenAI from "openai"
 import { getProviderById } from "./providers"
+import { logAIUsage, estimateTokens } from "./usage"
 
 /**
  * Create OpenAI-compatible client (works for OpenAI and xAI)
@@ -20,7 +21,7 @@ function getOpenAIClient(config) {
 /**
  * Call Anthropic API directly (different format from OpenAI)
  */
-async function callAnthropic(messages, config) {
+async function callAnthropic(messages, config, contextType = "chat") {
   // Convert OpenAI-style messages to Anthropic format
   const systemMessage = messages.find((m) => m.role === "system")
   const chatMessages = messages.filter((m) => m.role !== "system")
@@ -50,13 +51,35 @@ async function callAnthropic(messages, config) {
   }
 
   const data = await response.json()
-  return data.content[0]?.text || null
+  const content = data.content[0]?.text || null
+
+  // Log usage
+  if (content && data.usage) {
+    logAIUsage({
+      provider: "anthropic",
+      model: config.model || "claude-sonnet-4-20250514",
+      inputTokens: data.usage.input_tokens,
+      outputTokens: data.usage.output_tokens,
+      contextType,
+    })
+  } else if (content) {
+    // Fallback to estimation if usage data missing
+    logAIUsage({
+      provider: "anthropic",
+      model: config.model || "claude-sonnet-4-20250514",
+      inputTokens: estimateTokens(JSON.stringify(messages)),
+      outputTokens: estimateTokens(content),
+      contextType,
+    })
+  }
+
+  return content
 }
 
 /**
  * Call Google Gemini API directly
  */
-async function callGoogle(messages, config) {
+async function callGoogle(messages, config, contextType = "chat") {
   const systemMessage = messages.find((m) => m.role === "system")
   const chatMessages = messages.filter((m) => m.role !== "system")
 
@@ -92,40 +115,100 @@ async function callGoogle(messages, config) {
   }
 
   const data = await response.json()
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || null
+  const content = data.candidates?.[0]?.content?.parts?.[0]?.text || null
+
+  // Log usage
+  if (content && data.usageMetadata) {
+    logAIUsage({
+      provider: "google",
+      model: config.model || "gemini-1.5-flash",
+      inputTokens: data.usageMetadata.promptTokenCount,
+      outputTokens: data.usageMetadata.candidatesTokenCount,
+      contextType,
+    })
+  } else if (content) {
+    logAIUsage({
+      provider: "google",
+      model: config.model || "gemini-1.5-flash",
+      inputTokens: estimateTokens(JSON.stringify(messages)),
+      outputTokens: estimateTokens(content),
+      contextType,
+    })
+  }
+
+  return content
 }
 
 /**
  * Call AI with messages and config - supports all providers
  */
-export async function callAI(messages, config) {
+export async function callAI(messages, config, options = {}) {
+  const { contextType = "chat" } = options
+
   if (!config?.api_key) {
     throw new Error("No API key configured")
   }
 
   const provider = getProviderById(config.provider)
 
+  // Optimization: Force cheaper models for background tasks (ambient notes, memory extraction)
+  let modelToUse = config.model
+  const isBackground = ["ambient", "memory"].includes(contextType)
+
+  if (isBackground) {
+    const cheapModels = {
+      openai: "gpt-4o-mini",
+      grok: "grok-beta",
+      anthropic: "claude-3-5-sonnet-20241022", // Haiku if available, but sonnet is fast
+      google: "gemini-1.5-flash",
+    }
+    modelToUse = cheapModels[config.provider] || config.model
+  }
+
+  const effectiveConfig = { ...config, model: modelToUse }
+
   try {
     // Use Anthropic's native API
     if (provider.apiFormat === "anthropic") {
-      return await callAnthropic(messages, config)
+      return await callAnthropic(messages, effectiveConfig, contextType)
     }
 
     // Use Google's native API
     if (provider.apiFormat === "google") {
-      return await callGoogle(messages, config)
+      return await callGoogle(messages, effectiveConfig, contextType)
     }
 
     // Use OpenAI SDK for OpenAI-compatible APIs
-    const client = getOpenAIClient(config)
+    const client = getOpenAIClient(effectiveConfig)
     const response = await client.chat.completions.create({
-      model: config.model || "gpt-4o-mini",
+      model: modelToUse || "gpt-4o-mini",
       messages,
       max_tokens: 500,
       temperature: 0.7,
     })
 
-    return response.choices[0]?.message?.content || null
+    const content = response.choices[0]?.message?.content || null
+
+    // Log usage
+    if (content && response.usage) {
+      logAIUsage({
+        provider: config.provider,
+        model: modelToUse || "gpt-4o-mini",
+        inputTokens: response.usage.prompt_tokens,
+        outputTokens: response.usage.completion_tokens,
+        contextType,
+      })
+    } else if (content) {
+      logAIUsage({
+        provider: config.provider,
+        model: modelToUse || "gpt-4o-mini",
+        inputTokens: estimateTokens(JSON.stringify(messages)),
+        outputTokens: estimateTokens(content),
+        contextType,
+      })
+    }
+
+    return content
   } catch (error) {
     console.error("AI API Error:", error)
     throw error

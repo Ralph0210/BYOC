@@ -280,5 +280,81 @@ CREATE POLICY "Users can delete own memories" ON ai_memories
   FOR DELETE USING (auth.uid() = user_id);
 
 -- ===========================================
--- ✅ DONE! Database is ready.
+-- STEP 12: CREATE AI CONVERSATIONS TABLE
 -- ===========================================
+CREATE TABLE IF NOT EXISTS ai_conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  challenge_id UUID REFERENCES challenges(id) ON DELETE CASCADE,
+  messages JSONB DEFAULT '[]', -- [{role, content, timestamp}]
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, challenge_id)
+);
+
+ALTER TABLE ai_conversations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own conversations" ON ai_conversations
+  FOR ALL USING (auth.uid() = user_id);
+
+-- ===========================================
+-- STEP 13: CREATE AI USAGE LOGS TABLE
+-- ===========================================
+CREATE TABLE IF NOT EXISTS ai_usage_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL,
+  model TEXT NOT NULL,
+  input_tokens INT DEFAULT 0,
+  output_tokens INT DEFAULT 0,
+  estimated_cost DECIMAL DEFAULT 0,
+  context_type TEXT, -- 'chat', 'ambient', 'memory'
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE ai_usage_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own usage logs" ON ai_usage_logs
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own usage logs" ON ai_usage_logs
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- ✅ DONE! Database is ready.
+
+-- ===========================================
+-- STEP 14: AUTO-UPDATE UPDATED_AT COLUMNS
+-- ===========================================
+
+-- 1. Create the function with SECURE search_path
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql'
+SET search_path = public; -- Security Fix: Prevent search path hijacking
+
+-- 2. Apply triggers to relevant tables
+CREATE TRIGGER update_challenges_updated_at
+    BEFORE UPDATE ON challenges
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_ai_config_updated_at
+    BEFORE UPDATE ON ai_config
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_ai_memories_updated_at
+    BEFORE UPDATE ON ai_memories
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_ai_conversations_updated_at
+    BEFORE UPDATE ON ai_conversations
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- ===========================================
+

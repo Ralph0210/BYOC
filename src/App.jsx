@@ -46,7 +46,11 @@ import {
 } from "./components/ai/AmbientNote"
 import { ConversationPanel } from "./components/ai/ConversationPanel"
 import { AIConfigForm } from "./components/ai/AIConfigForm"
-import { useReturnDetection } from "./hooks/useAmbientNotes"
+import {
+  useReturnDetection,
+  prefetchAmbientNote,
+} from "./hooks/useAmbientNotes"
+import { useAIConfig } from "./hooks/useAIConfig"
 
 function App() {
   // Initialize theme
@@ -83,6 +87,7 @@ function App() {
   const [selectedChallengeForTask, setSelectedChallengeForTask] = useState(null)
 
   // AI State
+  const { config } = useAIConfig()
   const [showAISettings, setShowAISettings] = useState(false)
   const [chatChallengeId, setChatChallengeId] = useState(null)
   const { daysAway, isReturning, dismissReturn } = useReturnDetection()
@@ -142,6 +147,45 @@ function App() {
       }
     }
   }, [challenges, today, fetchTasksForChallenges, fetchCompletions])
+
+  // Pre-fetch AI notes for neglected tasks
+  useEffect(() => {
+    if (!config?.api_key || tasks.length === 0) return
+
+    const activeChallenges = challenges.filter((c) => !c.is_archived)
+
+    activeChallenges.forEach((challenge) => {
+      const challengeTasks = tasks.filter(
+        (t) => t.challenge_id === challenge.id
+      )
+
+      challengeTasks.forEach((task) => {
+        // Find last completion date for task
+        const taskCompletions = completions
+          .filter((c) => c.task_id === task.id)
+          .sort((a, b) => b.date.localeCompare(a.date))
+
+        const lastCompletedDate = taskCompletions[0]?.date || null
+        const daysSinceLastDone = lastCompletedDate
+          ? Math.floor(
+              (new Date() - new Date(lastCompletedDate)) / (1000 * 60 * 60 * 24)
+            )
+          : 999
+
+        // If neglected (3+ days), pre-fetch the note
+        if (daysSinceLastDone >= 3) {
+          prefetchAmbientNote(
+            "task",
+            {
+              taskName: task.name,
+              daysSinceLastDone,
+            },
+            config
+          )
+        }
+      })
+    })
+  }, [challenges, tasks, completions, config])
 
   // Toggle challenge expanded state
   const toggleChallenge = (challengeId) => {
