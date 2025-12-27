@@ -57,6 +57,8 @@ export function useAIConfig() {
         model: newConfig.model,
         personality_preset: newConfig.personality_preset,
         custom_instructions: newConfig.custom_instructions || null,
+        custom_personality_prompt: newConfig.custom_personality_prompt || null,
+        user_details: newConfig.user_details || null,
         companion_name: newConfig.companion_name || null,
         companion_photo_url: newConfig.companion_photo_url || null,
         updated_at: new Date().toISOString(),

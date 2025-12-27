@@ -60,6 +60,8 @@ export function AIConfigForm() {
         model: config.model || "gpt-4o-mini",
         personality_preset: config.personality_preset || "warm_encourager",
         custom_instructions: config.custom_instructions || "",
+        custom_personality_prompt: config.custom_personality_prompt || "",
+        user_details: config.user_details || "",
         companion_name: config.companion_name || "",
         companion_photo_url: config.companion_photo_url || "",
       }))
@@ -625,6 +627,25 @@ You are a playful, witty companion who uses humor to motivate. You speak like a 
             </p>
           </div>
         )}
+
+        {/* User Context (Bio) */}
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            About You{" "}
+            <span className="text-secondary font-normal">(Optional)</span>
+          </label>
+          <textarea
+            value={formData.user_details || ""}
+            onChange={(e) =>
+              setFormData({ ...formData, user_details: e.target.value })
+            }
+            className="w-full p-3 rounded-lg border dark:border-white/10 bg-transparent text-sm min-h-[80px]"
+            placeholder="Help the AI know you better. E.g., 'I'm a busy student trying to code more', 'I respond well to tough love', 'I'm a new parent'..."
+          />
+          <p className="text-xs text-tertiary mt-1">
+            Context for the AI to personalize its responses to you.
+          </p>
+        </div>
 
         {/* Custom Instructions */}
         <div>

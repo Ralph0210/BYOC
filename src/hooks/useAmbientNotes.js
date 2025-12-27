@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { callAI } from "../lib/ai/client"
+import { useAuth } from "./useAuth.jsx"
 import { buildSystemPrompt } from "../lib/ai/prompts"
 import { useAIConfig } from "./useAIConfig"
 import { supabase } from "../lib/supabase"
@@ -10,10 +11,23 @@ export const noteCache = new Map()
 /**
  * Pre-fetch an ambient note and store in cache
  */
-export async function prefetchAmbientNote(contextType, contextData, config) {
+export async function prefetchAmbientNote(
+  contextType,
+  contextData,
+  config,
+  userName = null
+) {
   if (!config?.api_key || !contextData) return null
 
-  const cacheKey = `${contextType}:${JSON.stringify(contextData).slice(0, 150)}`
+  // Include personality/instructions in cache key to invalidate on settings change
+  const cacheKey = `${contextType}:${JSON.stringify({
+    ...contextData,
+    s: {
+      p: config?.personality_preset,
+      i: config?.custom_instructions,
+      u: { n: userName, d: config?.user_details },
+    },
+  }).slice(0, 200)}`
 
   // 1. Check in-memory cache first
   const cached = noteCache.get(cacheKey)
@@ -37,19 +51,43 @@ export async function prefetchAmbientNote(contextType, contextData, config) {
       return persistentNote.note
     }
 
-    // 3. Fallback to AI
+    // Helper to enforce personality
+    const wrapPrompt = (basePrompt) => {
+      const userContext = `\nAddress the user as "${userName || "Friend"}".${config?.user_details ? `\nUser Context: ${config.user_details}` : ""}`
+
+      return `ACT STRICTLY AS YOUR PERSONALITY: "${config?.personality_preset || "neutral"}".
+Roleplay this persona completely. Speak TO the user.${userContext}
+Custom Instructions: "${config?.custom_instructions || "none"}".
+
+TASK: ${basePrompt}
+
+Remember: You are the character. Do not break character.`
+    }
+
     const contextPrompts = {
-      header: `Write a brief 1-sentence ambient note for: "${contextData.challengeName}", Day ${contextData.daysElapsed}/${contextData.totalDays}, ${contextData.progress}% complete. Be observational, not cheerleader-y. Example: "Day 12. You've found your groove this week."`,
-      task: `A task called "${contextData.taskName}" hasn't been done in ${contextData.daysSinceLastDone} days.
-Write a SHORT, warm encouragement (4-10 words). Follow your personality guidelines. Just the encouragement, no quotes.`,
-      summary: `Write 1-2 sentences summarizing today: ${contextData.completedToday}/${contextData.targetToday} tasks done.`,
-      empty: `Write a brief message (max 12 words) for someone with no tasks today.`,
-      return: `Write 1-2 sentences welcoming someone back after ${contextData.daysAway} days away.`,
-      calendar: `Write 3-5 words celebrating a perfect day.`,
+      header: wrapPrompt(
+        `Write a brief 1-sentence ambient note for: "${contextData.challengeName}", Day ${contextData.daysElapsed}/${contextData.totalDays}, ${contextData.progress}% complete. Be observational, not cheerleader-y. Example: "Day 12. You've found your groove this week."`
+      ),
+      insight:
+        wrapPrompt(`Your goal is to react to the '${contextData.challengeName}' challenge status: Day ${contextData.daysElapsed}/${contextData.totalDays}, ${contextData.progress}% complete.
+Do not just analyze—speak TO the user with your specific voice.
+Keep it to 2-4 sentences. Be the character.`),
+      task: wrapPrompt(`A task called "${contextData.taskName}" hasn't been done in ${contextData.daysSinceLastDone} days.
+Write a SHORT, warm encouragement (4-10 words). Follow your personality guidelines. Just the encouragement, no quotes.`),
+      summary: wrapPrompt(
+        `Write 1-2 sentences summarizing today: ${contextData.completedToday}/${contextData.targetToday} tasks done.`
+      ),
+      empty: wrapPrompt(
+        `Write a brief message (max 12 words) for someone with no tasks today.`
+      ),
+      return: wrapPrompt(
+        `Write 1-2 sentences welcoming someone back after ${contextData.daysAway} days away.`
+      ),
+      calendar: wrapPrompt(`Write 3-5 words celebrating a perfect day.`),
     }
 
     const userPrompt = contextPrompts[contextType] || contextPrompts.header
-    const systemPrompt = buildSystemPrompt(config, contextData)
+    const systemPrompt = buildSystemPrompt(config, contextData, null, userName)
 
     const response = await callAI(
       [
@@ -100,14 +138,24 @@ Write a SHORT, warm encouragement (4-10 words). Follow your personality guidelin
  */
 export function useAmbientNotes(contextType, contextData) {
   const { config } = useAIConfig()
+  const { user } = useAuth()
+  const userName =
+    user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0]
   const [note, setNote] = useState(null)
   const [loading, setLoading] = useState(false)
 
   const generateNote = useCallback(async () => {
     if (!config?.api_key || !contextData) return
 
-    // Create cache key - Standardized to 150 chars for accuracy
-    const cacheKey = `${contextType}:${JSON.stringify(contextData).slice(0, 150)}`
+    // Create cache key - Include settings to invalidate when personality changes
+    const cacheKey = `${contextType}:${JSON.stringify({
+      ...contextData,
+      s: {
+        p: config?.personality_preset,
+        i: config?.custom_instructions,
+        u: { n: userName, d: config?.user_details },
+      },
+    }).slice(0, 200)}`
 
     // Check in-memory cache first
     const cached = noteCache.get(cacheKey)
@@ -141,26 +189,52 @@ export function useAmbientNotes(contextType, contextData) {
       }
 
       // Build context-specific prompt
+      // Helper to enforce personality
+      const wrapPrompt = (basePrompt) => {
+        const isCustom = config?.personality_preset === "custom"
+        const personalityInstruction = isCustom
+          ? config?.custom_personality_prompt || "Friendly companion"
+          : config?.personality_preset || "neutral"
+
+        const userContext = `\nAddress the user as "${userName || "Friend"}".${config?.user_details ? `\nUser Context: ${config.user_details}` : ""}`
+
+        return `ACT STRICTLY AS YOUR PERSONALITY: "${personalityInstruction}".
+Roleplay this persona completely. Speak TO the user.${userContext}
+Custom Instructions: "${config?.custom_instructions || "none"}".
+
+TASK: ${basePrompt}
+
+Remember: You are the character. Do not break character.`
+      }
+
+      // Build context-specific prompt
       const contextPrompts = {
-        header: `Write a brief 1-sentence ambient note for: "${contextData.challengeName}", Day ${contextData.daysElapsed}/${contextData.totalDays}, ${contextData.progress}% complete. Be observational, not cheerleader-y. Example: "Day 12. You've found your groove this week."`,
+        header: wrapPrompt(
+          `Write a brief 1-sentence ambient note for: "${contextData.challengeName}", Day ${contextData.daysElapsed}/${contextData.totalDays}, ${contextData.progress}% complete. Be observational, not cheerleader-y. Example: "Day 12. You've found your groove this week."`
+        ),
+        insight:
+          wrapPrompt(`Your goal is to react to the '${contextData.challengeName}' challenge status: Day ${contextData.daysElapsed}/${contextData.totalDays}, ${contextData.progress}% complete.
+Do not just analyze—speak TO the user with your specific voice.
+Keep it to 2-4 sentences. Be the character.`),
 
-        task: `A task called "${contextData.taskName}" hasn't been done in ${contextData.daysSinceLastDone} days.
-Write a SHORT, warm encouragement (4-10 words). Follow your personality:
-- Warm Encourager: gentle, supportive, believes in them
-- Direct Coach: simple nudge, no fluff
-- Curious Friend: light, friendly 
-- Quiet Supporter: minimal but present
-Good examples: "You've got this one", "Small step today?", "Ready when you are", "This one's waiting for you"
-NEVER guilt-trip or use "should", "need to", "don't forget".
-Just the encouragement, no quotes.`,
+        task: wrapPrompt(`A task called "${contextData.taskName}" hasn't been done in ${contextData.daysSinceLastDone} days.
+Write a SHORT, warm encouragement (4-10 words). Follow your personality guidelines. Just the encouragement, no quotes.`),
 
-        summary: `Write 1-2 sentences summarizing today: ${contextData.completedToday}/${contextData.targetToday} tasks done. ${contextData.missedTasks?.length > 0 ? `Skipped: ${contextData.missedTasks.join(", ")}` : "All completed."}. Be matter-of-fact, acknowledge what was done. Follow your personality.`,
+        summary: wrapPrompt(
+          `Write 1-2 sentences summarizing today: ${contextData.completedToday}/${contextData.targetToday} tasks done. ${contextData.missedTasks?.length > 0 ? `Skipped: ${contextData.missedTasks.join(", ")}` : "All completed."}. Be matter-of-fact, acknowledge what was done.`
+        ),
 
-        empty: `Write a brief message (max 12 words) for someone with no tasks today. Keep it light—could be about rest, or asking if they want to add something. No exclamation points.`,
+        empty: wrapPrompt(
+          `Write a brief message (max 12 words) for someone with no tasks today. Keep it light.`
+        ),
 
-        return: `Write 1-2 sentences welcoming someone back after ${contextData.daysAway} days away. Be warm, zero guilt. Maybe ask if they want to continue or start fresh.`,
+        return: wrapPrompt(
+          `Write 1-2 sentences welcoming someone back after ${contextData.daysAway} days away. Be warm, zero guilt.`
+        ),
 
-        calendar: `Write 3-5 words celebrating a perfect day (all tasks done). Keep it understated. Examples: "Solid day.", "Clean sweep.", "That's all of them."`,
+        calendar: wrapPrompt(
+          `Write 3-5 words celebrating a perfect day (all tasks done). Keep it understated. Examples: "Solid day.", "Clean sweep.", "That's all of them."`
+        ),
       }
 
       const userPrompt = contextPrompts[contextType] || contextPrompts.header
@@ -206,7 +280,15 @@ Just the encouragement, no quotes.`,
     } finally {
       setLoading(false)
     }
-  }, [config, contextType, JSON.stringify(contextData)]) // Stringify contextData to ensure stable dependency
+  }, [
+    config,
+    contextType,
+    JSON.stringify({
+      ...contextData,
+      p: config?.personality_preset,
+      u: config?.user_details,
+    }), // Add personality/user to dependency to trigger re-run
+  ])
 
   useEffect(() => {
     generateNote()

@@ -51,6 +51,8 @@ import {
   prefetchAmbientNote,
 } from "./hooks/useAmbientNotes"
 import { useAIConfig } from "./hooks/useAIConfig"
+import { useCompanionMode } from "./hooks/useCompanionMode"
+import { CompanionInsightCard } from "./components/ai/CompanionInsightCard"
 
 function App() {
   // Initialize theme
@@ -88,6 +90,7 @@ function App() {
 
   // AI State
   const { config } = useAIConfig()
+  const isCompanionEnabled = useCompanionMode()
   const [showAISettings, setShowAISettings] = useState(false)
   const [chatChallengeId, setChatChallengeId] = useState(null)
   const { daysAway, isReturning, dismissReturn } = useReturnDetection()
@@ -150,7 +153,7 @@ function App() {
 
   // Pre-fetch AI notes for neglected tasks
   useEffect(() => {
-    if (!config?.api_key || tasks.length === 0) return
+    if (!isCompanionEnabled || tasks.length === 0) return
 
     // Stagger pre-fetches to avoid hitting rate limits too hard
     const timer = setTimeout(() => {
@@ -181,7 +184,9 @@ function App() {
                 taskName: task.name,
                 daysSinceLastDone,
               },
-              config
+              config,
+              user?.user_metadata?.full_name?.split(" ")[0] ||
+                user?.email?.split("@")[0]
             )
           }
         })
@@ -573,110 +578,122 @@ function App() {
             })
 
             return (
-              <Card key={challenge.id} padding="lg" className="overflow-hidden">
-                {/* Challenge Header */}
-                <div
-                  className="flex items-center gap-4 cursor-pointer"
-                  onClick={() => toggleChallenge(challenge.id)}
-                >
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-primary truncate">
-                        {challenge.name}
-                      </h3>
-                      {challenge.reward_text && (
-                        <Gift className="w-4 h-4 text-task-yellow flex-shrink-0" />
-                      )}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-secondary">
-                      <span>
-                        {challengeTasks.length} task
-                        {challengeTasks.length !== 1 ? "s" : ""}
-                      </span>
-                      <span>•</span>
-                      <span>
-                        {formatDisplayDate(challenge.start_date)} →{" "}
-                        {formatDisplayDate(challenge.end_date)}
-                      </span>
-                      {daysRemaining > 0 && (
-                        <>
-                          <span className="hidden sm:inline">•</span>
-                          <span
-                            className={cn(
-                              daysRemaining <= 3 &&
-                                "text-task-orange font-medium"
-                            )}
-                          >
-                            {daysRemaining}d left
-                          </span>
-                        </>
-                      )}
-                    </div>
-                    {/* Ambient Note */}
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setChatChallengeId(challenge.id)
-                      }}
-                      className="cursor-pointer hover:opacity-80 transition-opacity"
-                    >
-                      <AmbientNote
-                        challenge={challenge}
-                        tasks={challengeTasks}
-                        completions={completions}
-                      />
-                    </div>
-                  </div>
+              <div key={challenge.id} className="space-y-3">
+                {/* Companion Insight Card */}
+                {isCompanionEnabled && (
+                  <CompanionInsightCard
+                    challenge={challenge}
+                    tasks={challengeTasks}
+                    completions={completions}
+                    onChat={(c) => setChatChallengeId(c.id)}
+                  />
+                )}
 
-                  {/* Completion Stats */}
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-primary">
-                      {stats.overall}%
-                    </div>
-                    <div className="text-xs text-tertiary">progress</div>
-                    {todayTarget > 0 ? (
-                      <div className="text-xs font-medium text-primary mt-1">
-                        Today: {todayDone}/{todayTarget}
+                <Card padding="lg" className="overflow-hidden">
+                  {/* Challenge Header */}
+                  <div
+                    className="flex items-center gap-4 cursor-pointer"
+                    onClick={() => toggleChallenge(challenge.id)}
+                  >
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-primary truncate">
+                          {challenge.name}
+                        </h3>
+                        {challenge.reward_text && (
+                          <Gift className="w-4 h-4 text-task-yellow flex-shrink-0" />
+                        )}
                       </div>
-                    ) : (
-                      <div className="text-xs text-tertiary mt-1">No tasks</div>
-                    )}
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-secondary">
+                        <span>
+                          {challengeTasks.length} task
+                          {challengeTasks.length !== 1 ? "s" : ""}
+                        </span>
+                        <span>•</span>
+                        <span>
+                          {formatDisplayDate(challenge.start_date)} →{" "}
+                          {formatDisplayDate(challenge.end_date)}
+                        </span>
+                        {daysRemaining > 0 && (
+                          <>
+                            <span className="hidden sm:inline">•</span>
+                            <span
+                              className={cn(
+                                daysRemaining <= 3 &&
+                                  "text-task-orange font-medium"
+                              )}
+                            >
+                              {daysRemaining}d left
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {/* Ambient Note */}
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setChatChallengeId(challenge.id)
+                        }}
+                        className="cursor-pointer hover:opacity-80 transition-opacity"
+                      >
+                        <AmbientNote
+                          challenge={challenge}
+                          tasks={challengeTasks}
+                          completions={completions}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Completion Stats */}
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-primary">
+                        {stats.overall}%
+                      </div>
+                      <div className="text-xs text-tertiary">progress</div>
+                      {todayTarget > 0 ? (
+                        <div className="text-xs font-medium text-primary mt-1">
+                          Today: {todayDone}/{todayTarget}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-tertiary mt-1">
+                          No tasks
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleEditChallenge(challenge)
+                        }}
+                        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                      >
+                        <Edit2 className="w-4 h-4 text-tertiary" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteChallenge(challenge.id)
+                        }}
+                        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                      >
+                        <Trash2 className="w-4 h-4 text-tertiary hover:text-task-red" />
+                      </button>
+                      {isExpanded ? (
+                        <ChevronUp className="w-5 h-5 text-tertiary" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-tertiary" />
+                      )}
+                    </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleEditChallenge(challenge)
-                      }}
-                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                    >
-                      <Edit2 className="w-4 h-4 text-tertiary" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDeleteChallenge(challenge.id)
-                      }}
-                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                    >
-                      <Trash2 className="w-4 h-4 text-tertiary hover:text-task-red" />
-                    </button>
-                    {isExpanded ? (
-                      <ChevronUp className="w-5 h-5 text-tertiary" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-tertiary" />
-                    )}
-                  </div>
-                </div>
-
-                {/* Journey Progress Bar */}
-
-                {/* Expanded Content */}
-                {isExpanded && renderChallengeContent(challenge)}
-              </Card>
+                  {/* Expanded Content */}
+                  {isExpanded && renderChallengeContent(challenge)}
+                </Card>
+              </div>
             )
           })
         ) : (

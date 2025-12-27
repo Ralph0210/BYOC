@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react"
+import { useAuth } from "./useAuth.jsx"
 import { useAIConfig } from "./useAIConfig"
 import { useAIContext } from "./useAIContext"
 import { useAIMemory } from "./useAIMemory"
@@ -11,6 +12,7 @@ import {
 
 export function useConversation(challenge, tasks, completions) {
   const { config, hasKey } = useAIConfig()
+  const { user } = useAuth()
   const context = useAIContext(challenge, tasks, completions)
   const { memories, addMemories, getMemoriesForContext } = useAIMemory()
   const challengeId = challenge?.id
@@ -141,7 +143,15 @@ export function useConversation(challenge, tasks, completions) {
       try {
         // Include long-term memories in system prompt
         const memoriesContext = getMemoriesForContext()
-        const systemPrompt = buildSystemPrompt(config, context, memoriesContext)
+        const userName =
+          user?.user_metadata?.full_name?.split(" ")[0] ||
+          user?.email?.split("@")[0]
+        const systemPrompt = buildSystemPrompt(
+          config,
+          context,
+          memoriesContext,
+          userName
+        )
 
         // Construct message history for API
         const apiMessages = [

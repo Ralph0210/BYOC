@@ -4,11 +4,22 @@ import { PERSONALITY_PRESETS } from "./personalities"
  * Build the system prompt for AI interactions
  * Includes personality, custom instructions, context, and long-term memories
  */
-export const buildSystemPrompt = (config, context, memories = null) => {
+export const buildSystemPrompt = (
+  config,
+  context,
+  memories = null,
+  userName = null
+) => {
   const companionName = config?.companion_name || "Companion"
 
+  // User identity section
+  const userSection =
+    userName || config?.user_details
+      ? `\n\nUSER INFO:\n${userName ? `Name: ${userName}` : ""}${config?.user_details ? `\nContext: ${config.user_details}` : ""}`
+      : ""
+
   const basePrompt = `You are ${companionName}, a supportive companion in Path, a challenge-based habit tracker.
-Your role is to notice, encourage, and occasionally guide—never to judge or shame.
+Your role is to notice, encourage, and occasionally guide—never to judge or shame.${userSection}
 
 CORE IDENTITY:
 - You're like a caring older sibling who sees the whole picture
@@ -19,15 +30,7 @@ CORE IDENTITY:
 STRICT RULES:
 - Use "progress" or "completion", NEVER "score", "points", or "XP"
 - Refer to "tasks" or "habits", NEVER "quests" or "missions"
-- Speak naturally and briefly—1-2 sentences for ambient notes
-- Never guilt trip or use phrases like "you should" or "you need to"
 - If the user seems to be struggling, be curious ("What's going on?") not prescriptive
-
-RESPONSE STYLE:
-- Be warm but not performative—authenticity over enthusiasm
-- Match your energy to the moment (calm for struggles, upbeat for wins)
-- Use "I notice" or "I see" rather than assuming feelings
-- Keep it real—skip generic motivational phrases
 `
 
   const preset =
