@@ -638,14 +638,17 @@ function App() {
     <div className="min-h-screen bg-app">
       <Header title="Path" subtitle={formatDisplayDate(today)} />
 
-      <main className="max-w-3xl mx-auto px-4 py-6">{renderHome()}</main>
+      <main className="max-w-3xl mx-auto px-4 pb-24 pt-6 md:pb-6">
+        {renderHome()}
+      </main>
 
-      {/* Floating action button */}
+      {/* Floating action button - Safe area aware */}
       <button
         onClick={() => setShowChallengeModal(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-primary-500 text-white shadow-lg hover:bg-primary-600 transition-colors flex items-center justify-center"
+        aria-label="Create new challenge"
+        className="fixed bottom-6 right-6 md:bottom-8 md:right-8 w-14 h-14 rounded-full bg-primary-500 text-white shadow-lg shadow-primary-500/30 hover:bg-primary-600 active:scale-95 transition-all flex items-center justify-center z-30"
       >
-        <Plus className="w-6 h-6" />
+        <Plus className="w-7 h-7" />
       </button>
 
       {/* Challenge Modal */}

@@ -43,11 +43,11 @@ export function ChallengeCard({
         style={{ width: `${progress}%` }}
       />
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         {/* Challenge Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-semibold text-primary truncate">
+            <h3 className="text-lg font-semibold text-primary truncate leading-snug">
               {challenge.name}
             </h3>
             {challenge.reward_text && (
@@ -56,23 +56,23 @@ export function ChallengeCard({
           </div>
 
           {challenge.description && (
-            <p className="text-sm text-tertiary truncate mb-2">
+            <p className="text-sm text-tertiary truncate mb-3 sm:mb-2">
               {challenge.description}
             </p>
           )}
 
-          <div className="flex items-center gap-4 text-xs text-secondary">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-secondary">
             <span>
               {taskCount} task{taskCount !== 1 ? "s" : ""}
             </span>
-            <span>•</span>
+            <span className="hidden sm:inline">•</span>
             <span>
               {formatDisplayDate(challenge.start_date)} →{" "}
               {formatDisplayDate(challenge.end_date)}
             </span>
             {daysRemaining !== null && daysRemaining > 0 && (
               <>
-                <span>•</span>
+                <span className="hidden sm:inline">•</span>
                 <span
                   className={cn(
                     daysRemaining <= 3 && "text-task-orange font-medium"
@@ -84,44 +84,48 @@ export function ChallengeCard({
             )}
             {isCompleted && (
               <>
-                <span>•</span>
+                <span className="hidden sm:inline">•</span>
                 <span className="text-task-green font-medium">Completed</span>
               </>
             )}
           </div>
         </div>
 
-        {/* Completion Rate */}
-        <div className="text-right">
-          <div className="text-2xl font-bold text-primary">
-            {Math.round(completionRate)}%
+        {/* Right Side: Stats & Actions */}
+        <div className="flex items-center justify-between sm:justify-end gap-4 mt-2 sm:mt-0 border-t sm:border-t-0 border-app pt-3 sm:pt-0">
+          {/* Completion Rate */}
+          <div className="text-left sm:text-right">
+            <div className="text-2xl font-bold text-primary">
+              {Math.round(completionRate)}%
+            </div>
+            <div className="text-xs text-tertiary">complete</div>
           </div>
-          <div className="text-xs text-tertiary">complete</div>
-        </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-1">
-          <div className="flex gap-1">
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onEdit(challenge)
-              }}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            >
-              <Edit2 className="w-4 h-4 text-tertiary" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete(challenge.id)
-              }}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            >
-              <Trash2 className="w-4 h-4 text-tertiary hover:text-task-red" />
-            </button>
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEdit(challenge)
+                }}
+                aria-label="Edit challenge"
+                className="p-3 sm:p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <Edit2 className="w-5 h-5 sm:w-4 sm:h-4 text-tertiary" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete(challenge.id)
+                }}
+                aria-label="Delete challenge"
+                className="p-3 sm:p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-task-red"
+              >
+                <Trash2 className="w-5 h-5 sm:w-4 sm:h-4 text-tertiary hover:text-task-red" />
+              </button>
+            </div>
+            <ChevronRight className="w-5 h-5 text-tertiary hidden sm:block" />
           </div>
-          <ChevronRight className="w-5 h-5 text-tertiary" />
         </div>
       </div>
     </Card>

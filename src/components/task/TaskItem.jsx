@@ -118,65 +118,79 @@ export function TaskItem({
       <div className="flex-1 min-w-0">
         <h3
           className={cn(
-            "font-medium transition-colors duration-200",
+            "font-medium transition-colors duration-200 leading-snug break-words",
             isComplete ? "text-tertiary line-through" : "text-primary"
           )}
         >
           {task.name}
         </h3>
         {task.description && (
-          <p className="text-sm text-tertiary truncate mt-0.5">
+          <p className="text-sm text-tertiary truncate mt-1">
             {task.description}
           </p>
         )}
         {targetCount > 1 && (
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-3 mt-2">
             <button
-              onClick={handleDecrement}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleDecrement()
+              }}
               disabled={disabled || completionCount === 0}
               className={cn(
-                "w-6 h-6 rounded-full flex items-center justify-center",
+                "w-8 h-8 rounded-full flex items-center justify-center",
                 "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700",
-                "transition-colors",
+                "transition-colors active:scale-95",
                 (disabled || completionCount === 0) &&
                   "opacity-40 cursor-not-allowed"
               )}
             >
-              <Minus className="w-3 h-3 text-tertiary" />
+              <Minus className="w-4 h-4 text-tertiary" />
             </button>
-            <span className="text-xs text-tertiary min-w-[40px] text-center">
+            <span className="text-sm text-tertiary min-w-[40px] text-center font-medium">
               {completionCount} / {targetCount}
             </span>
             <button
-              onClick={handleIncrement}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleIncrement()
+              }}
               disabled={disabled || completionCount >= targetCount}
               className={cn(
-                "w-6 h-6 rounded-full flex items-center justify-center",
+                "w-8 h-8 rounded-full flex items-center justify-center",
                 "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700",
-                "transition-colors",
+                "transition-colors active:scale-95",
                 (disabled || completionCount >= targetCount) &&
                   "opacity-40 cursor-not-allowed"
               )}
             >
-              <Plus className="w-3 h-3 text-tertiary" />
+              <Plus className="w-4 h-4 text-tertiary" />
             </button>
           </div>
         )}
       </div>
 
       {/* Actions */}
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
         <button
-          onClick={() => onEdit(task)}
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation()
+            onEdit(task)
+          }}
+          aria-label="Edit task"
+          className="p-3 sm:p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
-          <Edit2 className="w-4 h-4 text-tertiary" />
+          <Edit2 className="w-5 h-5 sm:w-4 sm:h-4 text-tertiary" />
         </button>
         <button
-          onClick={() => onDelete(task.id)}
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete(task.id)
+          }}
+          aria-label="Delete task"
+          className="p-3 sm:p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-task-red"
         >
-          <Trash2 className="w-4 h-4 text-tertiary hover:text-task-red" />
+          <Trash2 className="w-5 h-5 sm:w-4 sm:h-4 text-tertiary hover:text-task-red" />
         </button>
       </div>
     </div>

@@ -97,73 +97,86 @@ export function CalendarGrid({
   }, [weeks])
 
   return (
-    <div className="overflow-x-auto pb-2">
-      <div className="inline-block min-w-full">
-        {/* Month labels */}
-        <div className="flex gap-1 mb-1 ml-8">
-          {weeks.map((_, weekIndex) => {
-            const monthLabel = months.find((m) => m.weekIndex === weekIndex)
-            return (
-              <div key={weekIndex} className="w-8 text-center">
-                {monthLabel && (
-                  <span className="text-xs text-tertiary">
-                    {monthLabel.label}
-                  </span>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Grid with day labels */}
-        <div className="flex">
-          {/* Day labels */}
-          <div className="flex flex-col gap-1 mr-2">
-            {["M", "T", "W", "T", "F", "S", "S"].map((day, i) => (
-              <div
-                key={i}
-                className="w-6 h-8 flex items-center justify-center text-xs text-tertiary"
-              >
-                {i % 2 === 0 ? day : ""}
-              </div>
-            ))}
+    <div className="relative">
+      <div className="overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide snap-x">
+        <div className="inline-block min-w-full">
+          {/* Month labels */}
+          <div className="flex gap-1 mb-2 ml-8">
+            {weeks.map((_, weekIndex) => {
+              const monthLabel = months.find((m) => m.weekIndex === weekIndex)
+              return (
+                <div
+                  key={weekIndex}
+                  className="w-8 text-center flex-shrink-0 snap-start"
+                >
+                  {monthLabel && (
+                    <span className="text-xs font-medium text-secondary sticky left-0">
+                      {monthLabel.label}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
           </div>
 
-          {/* Calendar cells */}
-          <div className="flex gap-1">
-            {weeks.map((week, weekIndex) => (
-              <div key={weekIndex} className="flex flex-col gap-1">
-                {week.map((day, dayIndex) => {
-                  // Get completions for this day
-                  const dayCompletions = completionsByDate[day.date] || []
-                  const completedTaskIds = [
-                    ...new Set(dayCompletions.map((c) => c.task_id)),
-                  ]
-                  const colors = completedTaskIds
-                    .map((id) => taskColors[id])
-                    .filter(Boolean)
+          {/* Grid with day labels */}
+          <div className="flex">
+            {/* Day labels (sticky) */}
+            <div className="flex flex-col gap-1 mr-2 sticky left-0 z-10 bg-surface dark:bg-gray-800 pr-2">
+              {["M", "T", "W", "T", "F", "S", "S"].map((day, i) => (
+                <div
+                  key={i}
+                  className="w-4 h-8 flex items-center justify-center text-[10px] font-medium text-tertiary"
+                >
+                  {i % 2 === 0 ? day : ""}
+                </div>
+              ))}
+            </div>
 
-                  return (
-                    <CalendarCell
-                      key={day.date}
-                      date={day.date}
-                      colors={colors}
-                      totalTasks={tasks.length}
-                      isToday={day.isToday}
-                      isSelected={day.date === selectedDate}
-                      isFuture={day.isFuture}
-                      inRange={day.inRange}
-                      onClick={() =>
-                        day.inRange && !day.isFuture && onDateClick?.(day.date)
-                      }
-                    />
-                  )
-                })}
-              </div>
-            ))}
+            {/* Calendar cells */}
+            <div className="flex gap-1">
+              {weeks.map((week, weekIndex) => (
+                <div
+                  key={weekIndex}
+                  className="flex flex-col gap-1 flex-shrink-0 snap-start"
+                >
+                  {week.map((day, dayIndex) => {
+                    // Get completions for this day
+                    const dayCompletions = completionsByDate[day.date] || []
+                    const completedTaskIds = [
+                      ...new Set(dayCompletions.map((c) => c.task_id)),
+                    ]
+                    const colors = completedTaskIds
+                      .map((id) => taskColors[id])
+                      .filter(Boolean)
+
+                    return (
+                      <CalendarCell
+                        key={day.date}
+                        date={day.date}
+                        colors={colors}
+                        totalTasks={tasks.length}
+                        isToday={day.isToday}
+                        isSelected={day.date === selectedDate}
+                        isFuture={day.isFuture}
+                        inRange={day.inRange}
+                        onClick={() =>
+                          day.inRange &&
+                          !day.isFuture &&
+                          onDateClick?.(day.date)
+                        }
+                      />
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Scroll hint gradient (optional, but helps on mobile) */}
+      <div className="absolute right-0 top-0 bottom-4 w-8 bg-gradient-to-l from-surface via-surface/50 to-transparent pointer-events-none md:hidden dark:from-gray-800 dark:via-gray-800/50" />
     </div>
   )
 }

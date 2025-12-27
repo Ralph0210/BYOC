@@ -23,20 +23,21 @@ export function Header({ title, subtitle }) {
 
   return (
     <header className="sticky top-0 z-40 bg-app/80 backdrop-blur-lg border-b border-app">
-      <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-        <div>
+      <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="flex flex-col justify-center min-h-[44px]">
           <h1 className="text-xl font-bold text-primary">{title}</h1>
           {subtitle && <p className="text-sm text-secondary">{subtitle}</p>}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <ThemeToggle />
 
           {isAuthenticated ? (
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-primary-500/20 hover:ring-primary-500/40 transition-all"
+                aria-label="User menu"
+                className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-primary-500/20 hover:ring-primary-500/40 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 {user?.user_metadata?.avatar_url ? (
                   <img
@@ -52,12 +53,12 @@ export function Header({ title, subtitle }) {
               </button>
 
               {showMenu && (
-                <div className="absolute right-0 top-full mt-2 w-48 rounded-xl bg-white dark:bg-gray-800 shadow-lg border border-app py-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="px-4 py-2 border-b border-app">
-                    <p className="text-sm font-medium text-primary truncate">
+                <div className="absolute right-0 top-full mt-2 w-64 rounded-xl bg-surface-light dark:bg-gray-800 shadow-xl border border-app py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="px-4 py-3 border-b border-app">
+                    <p className="font-medium text-primary truncate">
                       {user?.user_metadata?.full_name || "User"}
                     </p>
-                    <p className="text-xs text-secondary truncate">
+                    <p className="text-sm text-secondary truncate">
                       {user?.email}
                     </p>
                   </div>
@@ -66,9 +67,9 @@ export function Header({ title, subtitle }) {
                       signOut()
                       setShowMenu(false)
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-secondary hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                    className="w-full px-4 py-3 text-left text-secondary hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors"
                   >
-                    <LogOut className="w-4 h-4" />
+                    <LogOut className="w-5 h-5" />
                     Sign Out
                   </button>
                 </div>
@@ -79,8 +80,9 @@ export function Header({ title, subtitle }) {
               onClick={signInWithGoogle}
               disabled={loading}
               className={cn(
-                "px-3 py-1.5 text-sm font-medium rounded-lg",
-                "bg-primary-500 text-white hover:bg-primary-600 transition-colors",
+                "min-h-[44px] px-4 py-2 text-sm font-medium rounded-xl",
+                "bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700 transition-colors",
+                "focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900",
                 loading && "opacity-50 cursor-not-allowed"
               )}
             >
