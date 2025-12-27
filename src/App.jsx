@@ -39,6 +39,14 @@ import {
   cn,
 } from "./lib/utils"
 import { calculateChallengeStats } from "./lib/stats"
+import {
+  AmbientNote,
+  ReturnNote,
+  EmptyStateNote,
+} from "./components/ai/AmbientNote"
+import { ConversationPanel } from "./components/ai/ConversationPanel"
+import { AIConfigForm } from "./components/ai/AIConfigForm"
+import { useReturnDetection } from "./hooks/useAmbientNotes"
 
 function App() {
   // Initialize theme
@@ -73,6 +81,11 @@ function App() {
   const [editingChallenge, setEditingChallenge] = useState(null)
   const [editingTask, setEditingTask] = useState(null)
   const [selectedChallengeForTask, setSelectedChallengeForTask] = useState(null)
+
+  // AI State
+  const [showAISettings, setShowAISettings] = useState(false)
+  const [chatChallengeId, setChatChallengeId] = useState(null)
+  const { daysAway, isReturning, dismissReturn } = useReturnDetection()
 
   // Delete confirmation state
   const [deleteConfirm, setDeleteConfirm] = useState({ type: null, id: null })
@@ -459,10 +472,13 @@ function App() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-tertiary text-center py-2">
-              No tasks for{" "}
-              {isSelectedToday ? "today" : formatDisplayDate(selectedDate)}
-            </p>
+            <div className="text-center py-4">
+              <EmptyStateNote />
+              <p className="text-sm text-tertiary mt-2">
+                No tasks for{" "}
+                {isSelectedToday ? "today" : formatDisplayDate(selectedDate)}
+              </p>
+            </div>
           )}
         </div>
       </div>
@@ -475,6 +491,11 @@ function App() {
 
     return (
       <div className="space-y-4">
+        {/* Return After Absence Note */}
+        {isReturning && (
+          <ReturnNote daysAway={daysAway} onDismiss={dismissReturn} />
+        )}
+
         {activeChallenges.length > 0 ? (
           activeChallenges.map((challenge) => {
             const challengeTasks = tasks.filter(
@@ -543,6 +564,20 @@ function App() {
                           </span>
                         </>
                       )}
+                    </div>
+                    {/* Ambient Note */}
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setChatChallengeId(challenge.id)
+                      }}
+                      className="cursor-pointer hover:opacity-80 transition-opacity"
+                    >
+                      <AmbientNote
+                        challenge={challenge}
+                        tasks={challengeTasks}
+                        completions={completions}
+                      />
                     </div>
                   </div>
 
@@ -621,7 +656,11 @@ function App() {
 
   return (
     <div className="min-h-screen bg-app">
-      <Header title="Path" subtitle={formatDisplayDate(today)} />
+      <Header
+        title="Path"
+        subtitle={formatDisplayDate(today)}
+        onOpenAISettings={() => setShowAISettings(true)}
+      />
 
       <main className="max-w-3xl mx-auto px-4 pb-24 pt-6 md:pb-6">
         {renderHome()}
@@ -727,6 +766,26 @@ function App() {
         confirmText="Delete"
         variant="danger"
       />
+
+      {/* AI Settings Modal */}
+      <Modal
+        isOpen={showAISettings}
+        onClose={() => setShowAISettings(false)}
+        title="AI Settings"
+        size="lg"
+      >
+        <AIConfigForm />
+      </Modal>
+
+      {/* Chat Panel */}
+      {chatChallengeId && (
+        <ConversationPanel
+          challenge={challenges.find((c) => c.id === chatChallengeId)}
+          tasks={tasks.filter((t) => t.challenge_id === chatChallengeId)}
+          completions={completions}
+          onClose={() => setChatChallengeId(null)}
+        />
+      )}
     </div>
   )
 }

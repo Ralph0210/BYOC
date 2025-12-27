@@ -337,6 +337,35 @@ font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
 
 ---
 
+## Phase 2: PRD Alignment & Refinement (Current)
+
+### Local Testing Fix
+
+- [ ] **Action Required (User)**: Add `http://localhost:5173` (or your port) to Supabase Dashboard > Authentication > URL Configuration > Redirect URLs.
+- [ ] Verify `useAuth` uses `window.location.origin` (Confirmed).
+
+### Component Architecture Alignment
+
+Refactor codebase to strictly match PRD Section 4.4 structure:
+
+#### 1. Component Renaming & Extraction
+
+- [ ] **Rename** `ChatPanel.jsx` → `ConversationPanel.jsx`
+- [ ] **Rename** `useAmbientNote.js` → `useAmbientNotes.js`
+- [ ] **Extract** `PersonalityPicker.jsx` from `AIConfigForm.jsx`
+- [ ] **Create** `lib/ai/providers.js` and move provider constants/logic there.
+- [ ] **Create** `lib/encryption.js` (Stub/Basic implementation for future security).
+
+#### 2. Hook Separation
+
+- [ ] **Split** `useAI.js` logic:
+  - `useAI.js`: Core API calling primitive.
+  - `useConversation.js`: State management, persistence, history.
+
+#### 3. Verification
+
+- [ ] Verify all PRD components exist and are implemented.
+
 ## Verification Plan
 
 ### Automated Tests
@@ -370,3 +399,121 @@ No existing tests in this new project. Once implementation is complete, I will:
 5. **Test theme**:
    - Toggle light/dark mode
    - Verify system preference
+
+---
+
+## AI Companion Phase 1 (MVP) Implementation Plan
+
+### 1. Database Schema (Supabase)
+
+#### [NEW] `supabase/migrations/timestamp_ai_companion.sql`
+
+```sql
+-- User AI configuration
+CREATE TABLE ai_config (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL DEFAULT 'openai',
+  api_key TEXT, -- Encrypted via code before storage, or plain with RLS if no key management key available
+  model TEXT NOT NULL DEFAULT 'gpt-4o-mini',
+  personality_preset TEXT DEFAULT 'warm_encourager',
+  personality_customizations JSONB DEFAULT '{}',
+  custom_instructions TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id)
+);
+
+-- Conversation history
+CREATE TABLE ai_conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  challenge_id UUID REFERENCES challenges(id) ON DELETE CASCADE,
+  messages JSONB DEFAULT '[]',
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS Policies
+ALTER TABLE ai_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_conversations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own AI config" ON ai_config
+  FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage own conversations" ON ai_conversations
+  FOR ALL USING (auth.uid() = user_id);
+```
+
+### 2. Core Logic
+
+#### [NEW] `src/lib/ai/client.js`
+
+- `callAI(messages, config)`: Abstraction for API calls. Supports OpenAI SDK (and Grok via baseURL).
+
+#### [NEW] `src/lib/ai/prompts.js`
+
+- `buildSystemPrompt(config, context)`: Assembles the personality and context.
+
+#### [NEW] `src/hooks/useAI.js`
+
+- `useAI(challengeId)`: Hook to manage chat state, sending messages, and loading states.
+- `useAmbientNote(context)`: Hook to generating one-off ambient notes.
+
+#### [NEW] `src/hooks/useAIConfig.js`
+
+- CRUD for `ai_config` table.
+
+### 3. UI Components
+
+#### [NEW] `src/components/ai/AIConfigForm.jsx`
+
+- Form for "Bring Your Own Key".
+- Fields: Provider (OpenAI/Grok), API Key, Model.
+- "Test Connection" button.
+
+#### [NEW] `src/components/ai/AmbientNote.jsx`
+
+- Component to render small, contextual text in the header.
+- Uses `useAmbientNote` to fetch content.
+
+#### [NEW] `src/components/ai/ChatPanel.jsx`
+
+- Slide-over or modal for the full conversation.
+- Displays message history and input.
+
+### 4. Integration Points
+
+#### `src/App.jsx`
+
+- Add `<ChatPanel />` (globally or per challenge).
+- Add `<AmbientNote />` to Challenge Header.
+
+#### `src/components/layout/Header.jsx`
+
+- Add "Settings" or "AI" button to open Config.
+
+### 5. Future AI Phases (Roadmap)
+
+#### Phase 2: Personality & Customization
+
+- [ ] **Extract PersonalityPicker**: Separate component for selection.
+- [ ] Implement all 4 personality presets (Warm Encourager, Direct Coach, Curious Friend, Quiet Supporter).
+- [ ] Add Customization Sliders (Tone, Verbosity).
+- [ ] Add "Companion Naming".
+
+#### Phase 3: Full Ambient Presence
+
+- [ ] **Presence Locations (PRD 3.3.1)**:
+  - [ ] **Task List**: Contextual note below specific tasks.
+  - [ ] **Daily Summary**: End-of-day reflection.
+  - [ ] **Calendar View**: "Perfect day" annotation.
+  - [ ] **Empty State**: Encouragement when no tasks exist.
+  - [ ] **Return After Absence**: "Welcome back" logic (3+ days inactivity).
+- [ ] **Caching Layer**: `ai_ambient_cache` table usage.
+- [ ] **Batch Generation**: Generate all context notes on app open.
+
+#### Phase 4: Providers & Insights
+
+- [ ] Add Anthropic (Claude) & Google (Gemini) providers.
+- [ ] Implement Pattern Detection (Trends, correlations).
+- [ ] "Show AI Context" transparency modal.

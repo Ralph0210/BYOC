@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react"
-import { LogOut, User } from "lucide-react"
+import { LogOut, User, Sparkles } from "lucide-react"
 import { ThemeToggle } from "./ThemeToggle"
 import { useAuth } from "../../hooks/useAuth.jsx"
 import { cn } from "../../lib/utils"
 
-export function Header({ title, subtitle }) {
+export function Header({ title, subtitle, onOpenAISettings }) {
   const { user, isAuthenticated, signInWithGoogle, signOut, loading } =
     useAuth()
   const [showMenu, setShowMenu] = useState(false)
@@ -62,6 +62,16 @@ export function Header({ title, subtitle }) {
                       {user?.email}
                     </p>
                   </div>
+                  <button
+                    onClick={() => {
+                      onOpenAISettings?.()
+                      setShowMenu(false)
+                    }}
+                    className="w-full px-4 py-3 text-left text-secondary hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors border-b border-app"
+                  >
+                    <Sparkles className="w-5 h-5 text-purple-500" />
+                    AI Companion
+                  </button>
                   <button
                     onClick={() => {
                       signOut()

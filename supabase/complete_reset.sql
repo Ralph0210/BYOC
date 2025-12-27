@@ -209,5 +209,40 @@ WHERE c.is_archived = false
 GROUP BY c.id, c.name, c.start_date, c.end_date;
 
 -- ===========================================
+-- STEP 10: CREATE AI COMPANION CONFIG TABLE
+-- ===========================================
+CREATE TABLE IF NOT EXISTS ai_config (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL DEFAULT 'openai',
+  api_key TEXT,
+  model TEXT NOT NULL DEFAULT 'gpt-4o-mini',
+  personality_preset TEXT DEFAULT 'warm_encourager',
+  personality_customizations JSONB DEFAULT '{}',
+  custom_instructions TEXT,
+  companion_name TEXT,
+  companion_photo_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id)
+);
+
+-- Enable RLS for ai_config
+ALTER TABLE ai_config ENABLE ROW LEVEL SECURITY;
+
+-- Policies for ai_config
+CREATE POLICY "Users can view own ai_config" ON ai_config
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own ai_config" ON ai_config
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own ai_config" ON ai_config
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own ai_config" ON ai_config
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- ===========================================
 -- ✅ DONE! Database is ready.
 -- ===========================================
