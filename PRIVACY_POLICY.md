@@ -1,6 +1,6 @@
 # Privacy Policy 🛡️
 
-**Last Updated:** December 1, 2024
+**Last Updated:** December 27, 2025
 
 At Path, we believe that your habits and personal challenges are yours alone. This document outlines exactly what data we collect, why we collect it, and how we protect it.
 

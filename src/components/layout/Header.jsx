@@ -33,11 +33,11 @@ export function Header({ title, subtitle }) {
           <ThemeToggle />
 
           {isAuthenticated ? (
-            <div className="relative" ref={menuRef}>
+            <div className="relative flex items-center" ref={menuRef}>
               <button
                 onClick={() => setShowMenu(!showMenu)}
                 aria-label="User menu"
-                className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-primary-500/20 hover:ring-primary-500/40 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-primary-500/20 hover:ring-primary-500/40 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 {user?.user_metadata?.avatar_url ? (
                   <img

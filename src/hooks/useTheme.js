@@ -9,9 +9,16 @@ export function useTheme() {
     return THEMES.SYSTEM
   })
 
-  const [resolvedTheme, setResolvedTheme] = useState(THEMES.LIGHT)
-
-  // Update the resolved theme based on system preference
+  const [resolvedTheme, setResolvedTheme] = useState(() => {
+    if (typeof window === "undefined") return THEMES.LIGHT
+    const savedTheme = localStorage.getItem("theme")
+    if (savedTheme && savedTheme !== THEMES.SYSTEM) {
+      return savedTheme
+    }
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? THEMES.DARK
+      : THEMES.LIGHT
+  })
   const updateResolvedTheme = useCallback(() => {
     if (theme === THEMES.SYSTEM) {
       const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches
