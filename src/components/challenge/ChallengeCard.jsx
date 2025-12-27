@@ -10,6 +10,7 @@ export function ChallengeCard({
   onClick,
   onEdit,
   onDelete,
+  children,
 }) {
   const today = getToday()
 
@@ -93,12 +94,29 @@ export function ChallengeCard({
 
         {/* Right Side: Stats & Actions */}
         <div className="flex items-center justify-between sm:justify-end gap-4 mt-2 sm:mt-0 border-t sm:border-t-0 border-app pt-3 sm:pt-0">
-          {/* Completion Rate */}
-          <div className="text-left sm:text-right">
-            <div className="text-2xl font-bold text-primary">
-              {Math.round(completionRate)}%
+          {/* Stats Column */}
+          <div className="flex flex-col items-end gap-1">
+            {/* Today's Progress Badge */}
+            <div
+              className={cn(
+                "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
+                todayRate === 100
+                  ? "bg-task-green/10 text-task-green"
+                  : "bg-gray-100 text-secondary dark:bg-gray-800"
+              )}
+            >
+              Today: {Math.round(todayRate)}%
             </div>
-            <div className="text-xs text-tertiary">complete</div>
+
+            {/* Overall Progress */}
+            <div className="text-right">
+              <div className="text-xl font-bold text-primary leading-none">
+                {Math.round(completionRate)}%
+              </div>
+              <div className="text-[10px] text-tertiary font-medium">
+                overall
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -128,6 +146,7 @@ export function ChallengeCard({
           </div>
         </div>
       </div>
+      {children}
     </Card>
   )
 }

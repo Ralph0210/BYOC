@@ -14,6 +14,9 @@ export function CalendarCell({
     totalTasks > 0 ? Math.min(colors.length / totalTasks, 1) : 0
 
   // Determine background style based on completion - just color, no dots
+  const isPerfect = totalTasks > 0 && colors.length === totalTasks
+
+  // Determine background style
   const getBackgroundStyle = () => {
     if (!inRange || isFuture) {
       return { backgroundColor: "transparent" }
@@ -23,18 +26,16 @@ export function CalendarCell({
       return { backgroundColor: "var(--color-surface)" }
     }
 
-    // Calculate average color or use first color with intensity based on completion
     if (colors.length === 1) {
       return {
         backgroundColor: colors[0],
-        opacity: 0.4 + completionLevel * 0.6,
+        opacity: isPerfect ? 1 : 0.4 + completionLevel * 0.4,
       }
     }
 
     // Multiple colors - create gradient
     return {
       background: `linear-gradient(135deg, ${colors.slice(0, 4).join(", ")})`,
-      opacity: 0.4 + completionLevel * 0.6,
     }
   }
 
@@ -43,17 +44,25 @@ export function CalendarCell({
       onClick={onClick}
       disabled={!inRange || isFuture}
       className={cn(
-        "w-8 h-8 rounded-lg transition-all duration-150",
+        "w-8 h-8 rounded-lg transition-all duration-300 relative",
         inRange &&
           !isFuture &&
-          "hover:ring-2 hover:ring-primary-500 hover:ring-offset-1 cursor-pointer",
+          "hover:scale-105 active:scale-95 cursor-pointer",
         !inRange && "opacity-20",
         isFuture && "opacity-30",
-        isSelected && "ring-2 ring-primary-600 ring-offset-2",
-        isToday && !isSelected && "ring-2 ring-primary-500/50 ring-offset-1"
+        isSelected && "ring-2 ring-primary-600 ring-offset-2 z-10",
+        // Perfect day glow effect
+        isPerfect &&
+          !isFuture &&
+          "ring-2 ring-primary-500/50 ring-offset-1 shadow-sm",
+        !isPerfect && isToday && !isSelected && "ring-1 ring-primary-500/50"
       )}
       style={getBackgroundStyle()}
       title={date}
-    />
+    >
+      {isPerfect && (
+        <div className="absolute inset-0 rounded-lg bg-white/20 animate-pulse" />
+      )}
+    </button>
   )
 }

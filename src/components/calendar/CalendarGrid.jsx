@@ -122,7 +122,8 @@ export function CalendarGrid({
           {/* Grid with day labels */}
           <div className="flex">
             {/* Day labels (sticky) */}
-            <div className="flex flex-col gap-1 mr-2 sticky left-0 z-10 bg-surface dark:bg-gray-800 pr-2">
+            <div className="flex flex-col gap-1 mr-2 sticky left-0 z-10 pr-2">
+              <div className="absolute inset-0 bg-surface dark:bg-gray-800 opacity-95 -z-10" />
               {["M", "T", "W", "T", "F", "S", "S"].map((day, i) => (
                 <div
                   key={i}
