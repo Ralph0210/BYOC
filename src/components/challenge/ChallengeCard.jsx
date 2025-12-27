@@ -7,6 +7,7 @@ export function ChallengeCard({
   challenge,
   taskCount = 0,
   completionRate = 0,
+  todayRate = 0,
   onClick,
   onEdit,
   onDelete,
