@@ -55,25 +55,36 @@ STRICT RULES:
 
   // Format context - handle missing data gracefully
   let contextPrompt = ""
-  if (context) {
-    const contextSummary = []
-    if (context.challenge?.name) {
-      contextSummary.push(`Challenge: "${context.challenge.name}"`)
-      if (context.challenge.daysElapsed !== undefined) {
-        contextSummary.push(
-          `Day ${context.challenge.daysElapsed} of ${context.challenge.daysRemaining + context.challenge.daysElapsed}`
-        )
+  if (Array.isArray(context) && context.length > 0) {
+    const contextSummaries = context.map((item) => {
+      if (item.type === "challenge") {
+        const stats = item.stats || {}
+        return `[CHALLENGE: "${item.name}"]
+- Progress: ${stats.overall || 0}%
+- Day: ${stats.daysElapsed || 0}
+- Goal: ${item.description || "No description"}`
+      } else if (item.type === "task") {
+        return `[TASK: "${item.name}"]
+- Status: ${item.isCompleted ? "COMPLETED" : "PENDING"}
+- From Challenge: ${item.challengeName || "None"}`
       }
-      if (context.challenge.overallProgress !== undefined) {
-        contextSummary.push(`${context.challenge.overallProgress}% complete`)
-      }
-    }
-    if (context.tasks?.length) {
-      contextSummary.push(`${context.tasks.length} tasks`)
-    }
+      return `[REFERENCE: "${item.name}"]`
+    })
 
-    if (contextSummary.length) {
-      contextPrompt = `\n\nCURRENT CONTEXT:\n${contextSummary.join(" | ")}`
+    contextPrompt = `\n\nATTACHED CONTEXT:\n${contextSummaries.join("\n\n")}`
+  } else if (context && typeof context === "object") {
+    // Handling single object context (used by useAmbientNotes)
+    const parts = []
+    if (context.challengeName)
+      parts.push(`Challenge: "${context.challengeName}"`)
+    if (context.progress !== undefined)
+      parts.push(`Progress: ${context.progress}%`)
+    if (context.daysElapsed !== undefined)
+      parts.push(`Day ${context.daysElapsed} of ${context.totalDays || "?"}`)
+    if (context.taskName) parts.push(`Task: "${context.taskName}"`)
+
+    if (parts.length > 0) {
+      contextPrompt = `\n\nCURRENT CONTEXT:\n${parts.join(" | ")}`
     }
   }
 

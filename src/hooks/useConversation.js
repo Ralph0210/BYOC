@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react"
 import { useAuth } from "./useAuth.jsx"
 import { useAIConfig } from "./useAIConfig"
-import { useAIContext } from "./useAIContext"
 import { useAIMemory } from "./useAIMemory"
 import { callAI } from "../lib/ai/client"
 import { supabase } from "../lib/supabase"
@@ -10,12 +9,16 @@ import {
   buildMemoryExtractionPrompt,
 } from "../lib/ai/prompts"
 
-export function useConversation(challenge, tasks, completions) {
+// In-memory cache for session persistence (survives component unmounts)
+const sessionCache = new Map()
+
+const GLOBAL_CHAT_ID = "00000000-0000-0000-0000-000000000000"
+
+export function useConversation(activeContexts = []) {
   const { config, hasKey } = useAIConfig()
   const { user } = useAuth()
-  const context = useAIContext(challenge, tasks, completions)
   const { memories, addMemories, getMemoriesForContext } = useAIMemory()
-  const challengeId = challenge?.id
+  const challengeId = GLOBAL_CHAT_ID
 
   const [messages, setMessages] = useState([])
   const [generating, setGenerating] = useState(false)
@@ -24,13 +27,17 @@ export function useConversation(challenge, tasks, completions) {
   // Track if we need to extract memories (every 5 messages)
   const messageCountRef = useRef(0)
 
-  // Load conversation history from Supabase
+  // Load conversation history
   useEffect(() => {
-    if (!challengeId) {
-      setMessages([])
+    // 1. Check session cache first
+    if (sessionCache.has(challengeId)) {
+      const cached = sessionCache.get(challengeId)
+      setMessages(cached)
+      messageCountRef.current = cached.length
       return
     }
 
+    // 2. Load from Supabase
     async function loadHistory() {
       const { data, error } = await supabase
         .from("ai_conversations")
@@ -43,44 +50,38 @@ export function useConversation(challenge, tasks, completions) {
         return
       }
 
-      if (data?.messages) {
-        setMessages(data.messages)
-        messageCountRef.current = data.messages.length
-      } else {
-        setMessages([])
-        messageCountRef.current = 0
-      }
+      const history = data?.messages || []
+      setMessages(history)
+      messageCountRef.current = history.length
+
+      // Update cache
+      sessionCache.set(challengeId, history)
     }
 
     loadHistory()
-  }, [challengeId])
+  }, [])
 
   // Save conversation history to Supabase
-  const saveHistory = useCallback(
-    async (newMessages) => {
-      if (!challengeId) return
+  const saveHistory = useCallback(async (newMessages) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return
+    const { error } = await supabase.from("ai_conversations").upsert(
+      {
+        user_id: user.id,
+        challenge_id: challengeId,
+        messages: newMessages,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,challenge_id" }
+    )
 
-      const { error } = await supabase.from("ai_conversations").upsert(
-        {
-          user_id: user.id,
-          challenge_id: challengeId,
-          messages: newMessages,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,challenge_id" }
-      )
-
-      if (error) {
-        console.error("Failed to save chat history", error)
-      }
-    },
-    [challengeId]
-  )
+    if (error) {
+      console.error("Failed to save chat history", error)
+    }
+  }, [])
 
   // Extract memories from conversation (runs in background)
   const extractMemories = useCallback(
@@ -116,7 +117,7 @@ export function useConversation(challenge, tasks, completions) {
                 content: m.content,
                 confidence: m.confidence || 0.7,
                 source: "conversation",
-                context: `From chat about ${challenge?.name || "challenge"}`,
+                context: `From global chat session`,
               }))
               await addMemories(newMemories)
               console.log("Extracted memories:", newMemories.length)
@@ -128,7 +129,7 @@ export function useConversation(challenge, tasks, completions) {
         console.warn("Memory extraction failed:", err)
       }
     },
-    [config, memories, addMemories, challenge?.name]
+    [config, memories, addMemories]
   )
 
   const sendMessage = useCallback(
@@ -136,7 +137,11 @@ export function useConversation(challenge, tasks, completions) {
       if (!config?.api_key || !content.trim()) return
 
       const newMessage = { role: "user", content }
-      setMessages((prev) => [...prev, newMessage])
+      const updatedWithUser = [...messages, newMessage]
+
+      setMessages(updatedWithUser)
+      sessionCache.set(challengeId, updatedWithUser) // Update cache immediately for UI responsiveness
+
       setGenerating(true)
       setError(null)
 
@@ -146,9 +151,11 @@ export function useConversation(challenge, tasks, completions) {
         const userName =
           user?.user_metadata?.full_name?.split(" ")[0] ||
           user?.email?.split("@")[0]
+
+        // Pass the ACTIVE CONTEXTS array directly to buildSystemPrompt
         const systemPrompt = buildSystemPrompt(
           config,
-          context,
+          activeContexts,
           memoriesContext,
           userName
         )
@@ -168,6 +175,7 @@ export function useConversation(challenge, tasks, completions) {
           const assistantMessage = { role: "assistant", content: response }
           const updatedMessages = [...messages, newMessage, assistantMessage]
           setMessages(updatedMessages)
+          sessionCache.set(challengeId, updatedMessages) // Update cache
           saveHistory(updatedMessages)
 
           // Extract memories every 5 messages (in background)
@@ -189,7 +197,7 @@ export function useConversation(challenge, tasks, completions) {
     },
     [
       config,
-      context,
+      activeContexts, // Re-create sendMessage when active contexts change so prompt is improved
       messages,
       getMemoriesForContext,
       extractMemories,
@@ -197,17 +205,14 @@ export function useConversation(challenge, tasks, completions) {
     ]
   )
 
-  // Clear conversation for this challenge
   const clearConversation = useCallback(async () => {
     setMessages([])
     messageCountRef.current = 0
-    if (challengeId) {
-      await supabase
-        .from("ai_conversations")
-        .delete()
-        .eq("challenge_id", challengeId)
-    }
-  }, [challengeId])
+    await supabase
+      .from("ai_conversations")
+      .delete()
+      .eq("challenge_id", challengeId)
+  }, [])
 
   return {
     messages,

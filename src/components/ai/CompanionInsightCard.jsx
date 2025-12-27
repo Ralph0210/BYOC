@@ -48,7 +48,7 @@ export function CompanionInsightCard({
 
   const handleChat = () => {
     if (onChat) {
-      onChat(challenge)
+      onChat()
     }
   }
 
@@ -107,7 +107,7 @@ export function CompanionInsightCard({
                 onClick={handleChat}
                 className="text-xs"
               >
-                Talk about this
+                Chat
               </Button>
             </div>
           )}

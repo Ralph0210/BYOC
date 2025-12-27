@@ -92,7 +92,14 @@ function App() {
   const { config } = useAIConfig()
   const isCompanionEnabled = useCompanionMode()
   const [showAISettings, setShowAISettings] = useState(false)
-  const [chatChallengeId, setChatChallengeId] = useState(null)
+  const [showChat, setShowChat] = useState(false)
+  const [chatInitialContext, setChatInitialContext] = useState(null)
+
+  const handleOpenChat = (context = null) => {
+    setChatInitialContext(context)
+    setShowChat(true)
+  }
+
   const { daysAway, isReturning, dismissReturn } = useReturnDetection()
 
   // Delete confirmation state
@@ -585,7 +592,7 @@ function App() {
                     challenge={challenge}
                     tasks={challengeTasks}
                     completions={completions}
-                    onChat={(c) => setChatChallengeId(c.id)}
+                    onChat={() => handleOpenChat(challenge)}
                   />
                 )}
 
@@ -633,7 +640,7 @@ function App() {
                       <div
                         onClick={(e) => {
                           e.stopPropagation()
-                          setChatChallengeId(challenge.id)
+                          handleOpenChat(challenge)
                         }}
                         className="cursor-pointer hover:opacity-80 transition-opacity"
                       >
@@ -843,12 +850,14 @@ function App() {
       </Modal>
 
       {/* Chat Panel */}
-      {chatChallengeId && (
+      {showChat && (
         <ConversationPanel
-          challenge={challenges.find((c) => c.id === chatChallengeId)}
-          tasks={tasks.filter((t) => t.challenge_id === chatChallengeId)}
-          completions={completions}
-          onClose={() => setChatChallengeId(null)}
+          isOpen={showChat}
+          onClose={() => setShowChat(false)}
+          initialContext={chatInitialContext}
+          challenges={(challenges || []).filter((c) => !c.is_archived)}
+          tasks={tasks || []}
+          completions={completions || []}
         />
       )}
     </div>

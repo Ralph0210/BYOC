@@ -238,7 +238,12 @@ Write a SHORT, warm encouragement (4-10 words). Follow your personality guidelin
       }
 
       const userPrompt = contextPrompts[contextType] || contextPrompts.header
-      const systemPrompt = buildSystemPrompt(config, contextData)
+      const systemPrompt = buildSystemPrompt(
+        config,
+        contextData,
+        null,
+        userName
+      )
 
       const response = await callAI(
         [
