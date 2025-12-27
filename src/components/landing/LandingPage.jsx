@@ -1,53 +1,37 @@
 import {
-  Target,
-  CheckCircle2,
-  Calendar,
-  Gift,
   ArrowRight,
   Sparkles,
+  Key,
+  Shield,
+  Heart,
+  Palette,
+  Gift,
+  Calendar,
+  Check,
 } from "lucide-react"
 import { Button } from "../ui/Button"
 
 export function LandingPage({ onGetStarted, onSignIn, loading }) {
-  const features = [
-    {
-      icon: Target,
-      title: "Set Your Goals",
-      description:
-        "Create challenges with custom durations and track your daily habits",
-      color: "#0EA5E9",
-    },
-    {
-      icon: CheckCircle2,
-      title: "Build Consistency",
-      description:
-        "Mark off tasks daily and watch your streak grow with visual progress",
-      color: "#22C55E",
-    },
-    {
-      icon: Calendar,
-      title: "Track Progress",
-      description: "Beautiful heatmaps show your journey at a glance",
-      color: "#F97316",
-    },
-    {
-      icon: Gift,
-      title: "Reward Yourself",
-      description: "Set rewards for completing challenges to stay motivated",
-      color: "#EAB308",
-    },
+  // Pre-generated heatmap data for consistency
+  const heatmapData = [
+    1, 1, 0.8, 1, 0.6, 0, 0.9, 1, 1, 0.7, 1, 0.5, 1, 1, 0.8, 1, 1, 0.9, 0, 0.4,
+    1, 1, 1, 0.7, 1, 0.8, 1, 1, 0.6, 1,
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-primary-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-app">
       {/* Header */}
-      <header className="px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
-              <Target className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-xl font-bold text-primary">Path</span>
+      <header className="px-6 py-5 border-b border-app sticky top-0 bg-app/80 backdrop-blur-lg z-50">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/byoc-logo.png"
+              alt="BYOC"
+              className="w-9 h-9 rounded-xl"
+            />
+            <span className="text-xl font-bold tracking-tight text-primary">
+              BYOC
+            </span>
           </div>
           <Button variant="ghost" onClick={onSignIn} disabled={loading}>
             Sign In
@@ -55,144 +39,276 @@ export function LandingPage({ onGetStarted, onSignIn, loading }) {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <main className="px-6 py-16 md:py-24">
-        <div className="max-w-6xl mx-auto">
-          {/* Hero */}
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-sm font-medium mb-6">
+      <main>
+        {/* Hero Section */}
+        <section className="px-6 py-24 md:py-32">
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-sm font-semibold mb-8">
               <Sparkles className="w-4 h-4" />
-              Build habits that stick
+              Bring Your Own Companion
             </div>
 
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
-              Your journey to{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-500 to-primary-600">
-                better habits
-              </span>{" "}
-              starts here
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary mb-8 leading-[1.15] tracking-tight">
+              The AI habit tracker
+              <br />
+              <span className="text-primary-500">
+                that doesn't cost $20/month.
+              </span>
             </h1>
 
-            <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
-              Create personal challenges, track daily tasks, and reward yourself
-              for consistency. Path makes building habits simple and rewarding.
+            <p className="text-lg text-secondary mb-10 max-w-lg mx-auto leading-relaxed">
+              Other AI companions charge subscriptions. BYOC lets you use your
+              own API key—so you pay cents, not dollars.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" onClick={onGetStarted} className="group">
-                Get Started Free
-                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Button>
-              <Button
-                size="lg"
-                variant="secondary"
-                onClick={onSignIn}
-                disabled={loading}
-                className="gap-2"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                  <path
-                    fill="currentColor"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="currentColor"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="currentColor"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                  />
-                  <path
-                    fill="currentColor"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                  />
-                </svg>
-                Sign in with Google
-              </Button>
-            </div>
-          </div>
+            <Button size="lg" onClick={onSignIn} className="group">
+              Get Started — It's Free
+              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
+            </Button>
 
-          {/* Features Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
-            {features.map((feature, index) => (
-              <div
-                key={feature.title}
-                className="group p-6 rounded-2xl bg-white dark:bg-gray-800 shadow-lg shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-300"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110"
-                  style={{ backgroundColor: `${feature.color}20` }}
-                >
-                  <feature.icon
-                    className="w-6 h-6"
-                    style={{ color: feature.color }}
-                  />
+            <p className="text-xs text-tertiary mt-5">
+              No credit card. Just your OpenAI, Anthropic, or Gemini key.
+            </p>
+          </div>
+        </section>
+
+        {/* Why BYOK Section */}
+        <section className="px-6 py-24 bg-surface-light dark:bg-surface-dark">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-2xl md:text-3xl font-bold text-primary mb-4">
+                Why Bring Your Own Key?
+              </h2>
+              <p className="text-secondary max-w-md mx-auto">
+                AI subscriptions add up. We believe you should own your tools.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-8">
+              {/* Card 1 - Green accent */}
+              <div className="p-8 rounded-3xl bg-white dark:bg-gray-800/50 border border-app">
+                <div className="w-12 h-12 rounded-2xl bg-task-green/10 flex items-center justify-center mb-6">
+                  <Key className="w-6 h-6 text-task-green" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  {feature.title}
+                <h3 className="font-semibold text-primary text-lg mb-3">
+                  Pay What You Use
                 </h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">
-                  {feature.description}
+                <p className="text-secondary leading-relaxed">
+                  A typical month costs under $1. Compare that to $20/month
+                  subscriptions for similar AI features.
                 </p>
               </div>
-            ))}
-          </div>
 
-          {/* Demo Preview */}
-          <div className="relative max-w-4xl mx-auto">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary-500/20 to-purple-500/20 rounded-3xl blur-3xl" />
-            <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6 md:p-8">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
-                  <Target className="w-6 h-6 text-white" />
+              {/* Card 2 - Purple accent */}
+              <div className="p-8 rounded-3xl bg-white dark:bg-gray-800/50 border border-app">
+                <div className="w-12 h-12 rounded-2xl bg-task-purple/10 flex items-center justify-center mb-6">
+                  <Shield className="w-6 h-6 text-task-purple" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">
-                    Morning Routine Challenge
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    30 days • 3 tasks
-                  </p>
-                </div>
-                <div className="ml-auto text-right">
-                  <div className="text-2xl font-bold text-primary-500">85%</div>
-                  <div className="text-xs text-gray-500">complete</div>
-                </div>
+                <h3 className="font-semibold text-primary text-lg mb-3">
+                  Your Data Stays Yours
+                </h3>
+                <p className="text-secondary leading-relaxed">
+                  Your API key means your requests go directly to the provider.
+                  We never see your conversations.
+                </p>
               </div>
 
-              {/* Mock Heatmap */}
-              <div className="flex gap-1 flex-wrap justify-center">
-                {Array.from({ length: 30 }).map((_, i) => {
-                  const intensity = Math.random()
-                  return (
-                    <div
-                      key={i}
-                      className="w-6 h-6 md:w-8 md:h-8 rounded-lg"
-                      style={{
-                        backgroundColor:
-                          intensity > 0.7
-                            ? "#22C55E"
-                            : intensity > 0.4
-                              ? "#22C55E80"
-                              : intensity > 0.2
-                                ? "#22C55E40"
-                                : "#E5E7EB",
-                      }}
-                    />
-                  )
-                })}
+              {/* Card 3 - Teal accent */}
+              <div className="p-8 rounded-3xl bg-white dark:bg-gray-800/50 border border-app">
+                <div className="w-12 h-12 rounded-2xl bg-task-teal/10 flex items-center justify-center mb-6">
+                  <Palette className="w-6 h-6 text-task-teal" />
+                </div>
+                <h3 className="font-semibold text-primary text-lg mb-3">
+                  Pick Your Model
+                </h3>
+                <p className="text-secondary leading-relaxed">
+                  GPT-4o, Claude, Gemini—use whatever you prefer. Switch
+                  anytime. No lock-in.
+                </p>
               </div>
             </div>
           </div>
-        </div>
+        </section>
+
+        {/* Companion Section */}
+        <section className="px-6 py-28">
+          <div className="max-w-5xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-16 items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-task-pink/10 text-task-pink text-xs font-semibold mb-6">
+                  <Heart className="w-3.5 h-3.5" />
+                  AI Companion
+                </div>
+                <h2 className="text-2xl md:text-3xl font-bold text-primary mb-6 leading-snug">
+                  More than reminders.
+                  <br />
+                  <span className="text-task-pink">Real support.</span>
+                </h2>
+                <p className="text-secondary mb-8 leading-relaxed">
+                  Your companion learns your patterns. It notices when you're on
+                  a streak, and when you're struggling. It speaks in a voice you
+                  choose.
+                </p>
+                <ul className="space-y-4">
+                  {[
+                    "Choose from 4 personalities or create your own",
+                    "Context-aware encouragement based on your progress",
+                    "Remembers what you've shared across sessions",
+                  ].map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-start gap-3 text-secondary"
+                    >
+                      <Check className="w-5 h-5 text-task-green mt-0.5 flex-shrink-0" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Chat Preview */}
+              <div className="bg-surface-light dark:bg-surface-dark rounded-3xl border border-app p-6 space-y-5">
+                <div className="flex items-center gap-3 pb-4 border-b border-app">
+                  <div className="w-11 h-11 rounded-full bg-gradient-to-br from-task-pink to-task-purple flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-primary">Companion</p>
+                    <p className="text-xs text-tertiary">Warm Encourager</p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl rounded-tl-sm p-4 max-w-[85%] shadow-sm">
+                    <p className="text-sm text-primary leading-relaxed">
+                      Day 12 already. You've shown up more this week than
+                      last—momentum is real.
+                    </p>
+                  </div>
+                  <div className="bg-primary-500 text-white rounded-2xl rounded-tr-sm p-4 max-w-[85%] ml-auto shadow-sm">
+                    <p className="text-sm leading-relaxed">
+                      Honestly feeling a bit off today.
+                    </p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl rounded-tl-sm p-4 max-w-[85%] shadow-sm">
+                    <p className="text-sm text-primary leading-relaxed">
+                      That's okay. Some days are like that. Show up small
+                      today—one task is still progress.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Features Grid */}
+        <section className="px-6 py-24 bg-surface-light dark:bg-surface-dark">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-2xl md:text-3xl font-bold text-primary mb-4">
+                Everything you need to build habits.
+              </h2>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-10">
+              {/* Rewards */}
+              <div className="p-8 rounded-3xl bg-white dark:bg-gray-800/50 border border-app">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-task-orange/10 flex items-center justify-center">
+                    <Gift className="w-6 h-6 text-task-orange" />
+                  </div>
+                  <h3 className="font-semibold text-primary text-lg">
+                    Reward Yourself
+                  </h3>
+                </div>
+                <p className="text-secondary mb-6 leading-relaxed">
+                  Set a reward for each challenge. Complete 21 days of reading?
+                  New headphones. The goal is tangible.
+                </p>
+                <div className="p-4 rounded-2xl bg-task-orange/5 border border-task-orange/20">
+                  <p className="text-xs text-task-orange font-medium mb-1.5">
+                    Reward for "Morning Routine"
+                  </p>
+                  <p className="font-semibold text-primary">
+                    🎧 Nice dinner at that new place
+                  </p>
+                </div>
+              </div>
+
+              {/* Heatmap */}
+              <div className="p-8 rounded-3xl bg-white dark:bg-gray-800/50 border border-app">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-task-indigo/10 flex items-center justify-center">
+                    <Calendar className="w-6 h-6 text-task-indigo" />
+                  </div>
+                  <h3 className="font-semibold text-primary text-lg">
+                    Visual Progress
+                  </h3>
+                </div>
+                <p className="text-secondary mb-6 leading-relaxed">
+                  A heatmap shows your consistency at a glance. The more color,
+                  the stronger the habit.
+                </p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {heatmapData.map((intensity, i) => (
+                    <div
+                      key={i}
+                      className="w-6 h-6 rounded-lg"
+                      style={{
+                        backgroundColor:
+                          intensity > 0.8
+                            ? "#5856D6"
+                            : intensity > 0.5
+                              ? "#8E8AE9"
+                              : intensity > 0.2
+                                ? "#C7C5F4"
+                                : "#F2F2F7",
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Final CTA */}
+        <section className="px-6 py-28">
+          <div className="max-w-2xl mx-auto text-center">
+            <h2 className="text-2xl md:text-3xl font-bold text-primary mb-6">
+              Stop paying for AI subscriptions.
+            </h2>
+            <p className="text-secondary mb-10 leading-relaxed">
+              BYOC gives you the same features—companion support, rewards, and
+              progress tracking—without the monthly fee. Just bring your API
+              key.
+            </p>
+            <Button size="lg" onClick={onSignIn} className="group">
+              Start Free
+              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
+            </Button>
+          </div>
+        </section>
       </main>
 
       {/* Footer */}
-      <footer className="px-6 py-8 border-t border-gray-200 dark:border-gray-800">
-        <div className="max-w-6xl mx-auto text-center text-sm text-gray-500 dark:text-gray-400">
-          <p>© 2025 Path. Build better habits, one day at a time.</p>
+      <footer className="px-6 py-12 border-t border-app">
+        <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-2">
+            <img src="/byoc-logo.png" alt="BYOC" className="w-4 h-4" />
+            <span className="font-semibold text-primary">BYOC</span>
+          </div>
+          <p className="text-xs text-tertiary">
+            © 2025 BYOC. Built for people who own their tools.
+          </p>
+          <div className="flex gap-5 text-xs text-tertiary">
+            <a href="#" className="hover:text-primary transition-colors">
+              Privacy
+            </a>
+            <a href="#" className="hover:text-primary transition-colors">
+              Open Source
+            </a>
+          </div>
         </div>
       </footer>
     </div>

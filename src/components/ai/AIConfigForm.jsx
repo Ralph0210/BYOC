@@ -367,8 +367,13 @@ export function AIConfigForm() {
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
       <div className="border-b pb-4 dark:border-white/10 flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">AI Configuration</h3>
-          <p className="text-sm text-tertiary">Connect your own AI provider.</p>
+          <h3 className="text-lg font-semibold tracking-tight">
+            BYOC Configuration
+          </h3>
+          <p className="text-sm text-tertiary">
+            <strong>Bring Your Own Key (BYOK):</strong> You pay only the raw
+            cost to your provider. We charge nothing.
+          </p>
         </div>
         {config?.api_key && (
           <button

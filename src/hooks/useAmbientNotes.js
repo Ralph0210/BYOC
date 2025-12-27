@@ -310,7 +310,7 @@ export function useReturnDetection() {
   const [isReturning, setIsReturning] = useState(false)
 
   useEffect(() => {
-    const lastVisit = localStorage.getItem("path_last_visit")
+    const lastVisit = localStorage.getItem("byoc_last_visit")
     const today = new Date().toISOString().split("T")[0]
 
     if (lastVisit && lastVisit !== today) {
@@ -327,7 +327,7 @@ export function useReturnDetection() {
     }
 
     // Update last visit
-    localStorage.setItem("path_last_visit", today)
+    localStorage.setItem("byoc_last_visit", today)
   }, [])
 
   const dismissReturn = () => setIsReturning(false)

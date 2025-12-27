@@ -68,12 +68,18 @@ function App() {
   } = useAuth()
   const [hasStarted, setHasStarted] = useState(() => {
     // Check if user has used the app before
-    return localStorage.getItem("path_has_started") === "true"
+    return localStorage.getItem("byoc_has_started") === "true"
   })
 
   const handleGetStarted = () => {
-    localStorage.setItem("path_has_started", "true")
+    localStorage.setItem("byoc_has_started", "true")
     setHasStarted(true)
+  }
+
+  const handleSignOut = async () => {
+    await signOut()
+    localStorage.removeItem("byoc_has_started")
+    setHasStarted(false)
   }
 
   const today = getToday()
@@ -729,9 +735,10 @@ function App() {
   return (
     <div className="min-h-screen bg-app">
       <Header
-        title="Path"
+        title="BYOC"
         subtitle={formatDisplayDate(today)}
         onOpenAISettings={() => setShowAISettings(true)}
+        onSignOut={handleSignOut}
       />
 
       <main className="max-w-3xl mx-auto px-4 pb-24 pt-6 md:pb-6">
