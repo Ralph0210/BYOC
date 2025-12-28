@@ -148,8 +148,8 @@ export function TaskItem({
         )}
       </div>
 
-      {/* Actions (Edit/Delete) - Only visible on hover/focus */}
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
+      {/* Actions (Edit/Delete) - Always visible */}
+      <div className="flex gap-1">
         <button
           onClick={(e) => {
             e.stopPropagation()

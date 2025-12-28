@@ -604,10 +604,7 @@ function App() {
 
                 <Card padding="lg" className="overflow-hidden">
                   {/* Challenge Header */}
-                  <div
-                    className="flex items-center gap-4 cursor-pointer"
-                    onClick={() => toggleChallenge(challenge.id)}
-                  >
+                  <div className="flex items-center gap-4">
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -695,16 +692,11 @@ function App() {
                       >
                         <Trash2 className="w-4 h-4 text-tertiary hover:text-task-red" />
                       </button>
-                      {isExpanded ? (
-                        <ChevronUp className="w-5 h-5 text-tertiary" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-tertiary" />
-                      )}
                     </div>
                   </div>
 
-                  {/* Expanded Content */}
-                  {isExpanded && renderChallengeContent(challenge)}
+                  {/* Always show content */}
+                  {renderChallengeContent(challenge)}
                 </Card>
               </div>
             )
