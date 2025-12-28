@@ -59,10 +59,14 @@ STRICT RULES:
     const contextSummaries = context.map((item) => {
       if (item.type === "challenge") {
         const stats = item.stats || {}
+        const tasksList =
+          item.tasks?.length > 0
+            ? `\n- Tasks: ${item.tasks.map((t) => `"${t.name}" (${t.frequency_type}, ${t.frequency_count}x)`).join(", ")}`
+            : ""
         return `[CHALLENGE: "${item.name}"]
 - Progress: ${stats.overall || 0}%
 - Day: ${stats.daysElapsed || 0}
-- Goal: ${item.description || "No description"}`
+- Goal: ${item.description || "No description"}${tasksList}`
       } else if (item.type === "task") {
         return `[TASK: "${item.name}"]
 - Status: ${item.isCompleted ? "COMPLETED" : "PENDING"}

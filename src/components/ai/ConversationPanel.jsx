@@ -37,6 +37,12 @@ export function ConversationPanel({
             completions
           )
           enrichedItem.stats = stats
+          // Include tasks so AI knows what tasks belong to this challenge
+          enrichedItem.tasks = challengeTasks.map((t) => ({
+            name: t.name,
+            frequency_type: t.frequency_type,
+            frequency_count: t.frequency_count || 1,
+          }))
         } else if (type === "task") {
           const today = new Date().toISOString().split("T")[0]
           const isCompleted = completions.some(
