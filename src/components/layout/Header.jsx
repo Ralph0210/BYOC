@@ -1,12 +1,17 @@
 import { useState, useRef, useEffect } from "react"
-import { LogOut, User, Sparkles } from "lucide-react"
-import { ThemeToggle } from "./ThemeToggle"
+import { Settings, LogOut, User, Moon, Sun } from "lucide-react"
 import { useAuth } from "../../hooks/useAuth.jsx"
+import { useTheme } from "../../hooks/useTheme"
 import { cn } from "../../lib/utils"
 
-export function Header({ title, subtitle, onOpenAISettings, onSignOut }) {
+/**
+ * Soft Focus Header
+ * Clean, minimal header with wordmark logo and user avatar
+ */
+export function Header({ onOpenAISettings, onSignOut }) {
   const { user, isAuthenticated, signInWithGoogle, signOut, loading } =
     useAuth()
+  const { theme, setTheme } = useTheme()
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef(null)
 
@@ -21,23 +26,49 @@ export function Header({ title, subtitle, onOpenAISettings, onSignOut }) {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark")
+  }
+
   return (
-    <header className="sticky top-0 z-40 bg-app/80 backdrop-blur-lg border-b border-app">
-      <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex flex-col justify-center min-h-[44px]">
-          <h1 className="text-xl font-bold text-primary">{title}</h1>
-          {subtitle && <p className="text-sm text-secondary">{subtitle}</p>}
+    <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-xl border-b border-app">
+      <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
+        {/* Wordmark Logo */}
+        <div className="flex items-center gap-3">
+          <span className="wordmark">Path</span>
         </div>
 
-        <div className="flex items-center gap-3">
-          <ThemeToggle />
+        {/* Right side actions */}
+        <div className="flex items-center gap-2">
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center",
+              "text-secondary hover:text-primary hover:bg-surface-elevated",
+              "transition-colors focus-visible:ring-2 focus-visible:ring-accent"
+            )}
+          >
+            {theme === "dark" ? (
+              <Sun className="w-5 h-5" />
+            ) : (
+              <Moon className="w-5 h-5" />
+            )}
+          </button>
 
           {isAuthenticated ? (
-            <div className="relative flex items-center" ref={menuRef}>
+            <div className="relative" ref={menuRef}>
+              {/* User Avatar Button */}
               <button
                 onClick={() => setShowMenu(!showMenu)}
                 aria-label="User menu"
-                className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-primary-500/20 hover:ring-primary-500/40 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
+                aria-expanded={showMenu}
+                className={cn(
+                  "w-10 h-10 rounded-full overflow-hidden",
+                  "ring-2 ring-border hover:ring-accent/50",
+                  "transition-all focus-visible:ring-accent"
+                )}
               >
                 {user?.user_metadata?.avatar_url ? (
                   <img
@@ -46,46 +77,67 @@ export function Header({ title, subtitle, onOpenAISettings, onSignOut }) {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full bg-primary-500 flex items-center justify-center">
+                  <div className="w-full h-full bg-accent flex items-center justify-center">
                     <User className="w-5 h-5 text-white" />
                   </div>
                 )}
               </button>
 
+              {/* Dropdown Menu */}
               {showMenu && (
-                <div className="absolute right-0 top-full mt-2 w-64 rounded-xl bg-surface-light dark:bg-gray-800 shadow-xl border border-app py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div
+                  className={cn(
+                    "absolute right-0 top-full mt-2 w-64",
+                    "rounded-xl bg-surface shadow-lg border border-app",
+                    "animate-scale-in origin-top-right"
+                  )}
+                >
+                  {/* User info */}
                   <div className="px-4 py-3 border-b border-app">
                     <p className="font-medium text-primary truncate">
                       {user?.user_metadata?.full_name || "User"}
                     </p>
-                    <p className="text-sm text-secondary truncate">
+                    <p className="text-sm text-tertiary truncate">
                       {user?.email}
                     </p>
                   </div>
-                  <button
-                    onClick={() => {
-                      onOpenAISettings?.()
-                      setShowMenu(false)
-                    }}
-                    className="w-full px-4 py-3 text-left text-secondary hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors border-b border-app"
-                  >
-                    <Sparkles className="w-5 h-5 text-purple-500" />
-                    AI Companion
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (onSignOut) {
-                        onSignOut()
-                      } else {
-                        signOut()
-                      }
-                      setShowMenu(false)
-                    }}
-                    className="w-full px-4 py-3 text-left text-secondary hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors"
-                  >
-                    <LogOut className="w-5 h-5" />
-                    Sign Out
-                  </button>
+
+                  {/* Menu items */}
+                  <div className="py-1">
+                    <button
+                      onClick={() => {
+                        onOpenAISettings?.()
+                        setShowMenu(false)
+                      }}
+                      className={cn(
+                        "w-full px-4 py-3 text-left",
+                        "text-secondary hover:bg-surface-elevated hover:text-primary",
+                        "flex items-center gap-3 transition-colors"
+                      )}
+                    >
+                      <Settings className="w-5 h-5" />
+                      Settings
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (onSignOut) {
+                          onSignOut()
+                        } else {
+                          signOut()
+                        }
+                        setShowMenu(false)
+                      }}
+                      className={cn(
+                        "w-full px-4 py-3 text-left",
+                        "text-secondary hover:bg-surface-elevated hover:text-primary",
+                        "flex items-center gap-3 transition-colors"
+                      )}
+                    >
+                      <LogOut className="w-5 h-5" />
+                      Sign Out
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -94,9 +146,7 @@ export function Header({ title, subtitle, onOpenAISettings, onSignOut }) {
               onClick={signInWithGoogle}
               disabled={loading}
               className={cn(
-                "min-h-[44px] px-4 py-2 text-sm font-medium rounded-xl",
-                "bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700 transition-colors",
-                "focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900",
+                "btn btn-primary",
                 loading && "opacity-50 cursor-not-allowed"
               )}
             >

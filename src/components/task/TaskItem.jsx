@@ -61,11 +61,11 @@ export function TaskItem({
   return (
     <div
       className={cn(
-        "group flex items-center gap-4 p-4 rounded-2xl transition-all duration-150",
-        "bg-white dark:bg-surface-dark",
-        "hover:shadow-card",
+        "group flex items-center gap-4 p-4 rounded-xl transition-all duration-200",
+        "bg-surface border border-transparent hover:border-border",
+        "hover:shadow-sm",
         disabled && "opacity-50 cursor-not-allowed",
-        isSnoozed && "opacity-60 bg-gray-50 dark:bg-gray-800/50"
+        isSnoozed && "opacity-50 bg-surface/50"
       )}
     >
       {/* Premium Icon Container (Left) */}

@@ -1,5 +1,9 @@
 import { cn } from "../../lib/utils"
 
+/**
+ * Soft Focus Card Component
+ * Clean, minimal card with warm shadows and subtle borders
+ */
 export function Card({
   children,
   className,
@@ -17,11 +21,9 @@ export function Card({
   return (
     <div
       className={cn(
-        "bg-white dark:bg-surface-dark rounded-2xl shadow-card",
-        "border border-transparent dark:border-gray-800",
+        "card",
         paddingSizes[padding],
-        interactive &&
-          "card-interactive cursor-pointer hover:shadow-card-hover",
+        interactive && "card-interactive cursor-pointer",
         className
       )}
       {...props}

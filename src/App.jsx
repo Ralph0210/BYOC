@@ -740,6 +740,17 @@ function App() {
             </Button>
           </Card>
         )}
+
+        {/* Inline New Challenge Card - Soft Focus design */}
+        {challenges.filter((c) => !c.is_archived).length > 0 && (
+          <button
+            onClick={() => setShowChallengeModal(true)}
+            className="invite-card w-full"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="text-sm font-medium">Start a new challenge</span>
+          </button>
+        )}
       </div>
     )
   }
@@ -758,24 +769,13 @@ function App() {
   return (
     <div className="min-h-screen bg-app">
       <Header
-        title="BYOC"
-        subtitle={formatDisplayDate(today)}
         onOpenAISettings={() => setShowAISettings(true)}
         onSignOut={handleSignOut}
       />
 
-      <main className="max-w-3xl mx-auto px-4 pb-24 pt-6 md:pb-6">
-        {renderHome()}
-      </main>
+      <main className="max-w-2xl mx-auto px-6 pb-12 pt-6">{renderHome()}</main>
 
-      {/* Floating action button - Safe area aware */}
-      <button
-        onClick={() => setShowChallengeModal(true)}
-        aria-label="Create new challenge"
-        className="fixed bottom-6 right-6 md:bottom-8 md:right-8 w-14 h-14 rounded-full bg-primary-500 text-white shadow-lg shadow-primary-500/30 hover:bg-primary-600 active:scale-95 transition-all flex items-center justify-center z-30"
-      >
-        <Plus className="w-7 h-7" />
-      </button>
+      {/* FAB removed - replaced with inline invite card */}
 
       {/* Challenge Modal */}
       <Modal

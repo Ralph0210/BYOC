@@ -69,26 +69,23 @@ export function CompanionInsightCard({
   if (!config?.api_key) return null
 
   return (
-    <Card
-      className="mb-4 bg-gradient-to-r from-primary/5 to-purple-500/5 border-primary/10"
-      padding="md"
-    >
-      <div className="flex items-start gap-3">
-        {/* Avatar */}
+    <Card className="mb-4 card-soft ai-glow" padding="md">
+      <div className="flex items-start gap-4">
+        {/* Avatar - AI Orb */}
         <div className="flex-shrink-0">
           {displayPhoto ? (
             <img
               src={displayPhoto}
               alt={displayName}
-              className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/20"
+              className="w-11 h-11 rounded-full object-cover ring-2 ring-ai-primary/30"
             />
           ) : isInnerSelf ? (
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white ring-2 ring-purple-500/20">
-              <User className="w-6 h-6" />
+            <div className="w-11 h-11 ai-orb flex items-center justify-center text-white">
+              <User className="w-5 h-5" />
             </div>
           ) : (
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-purple-500 flex items-center justify-center text-white ring-2 ring-primary/20">
-              <Sparkles className="w-6 h-6" />
+            <div className="w-11 h-11 ai-orb flex items-center justify-center text-white">
+              <Sparkles className="w-5 h-5" />
             </div>
           )}
         </div>
