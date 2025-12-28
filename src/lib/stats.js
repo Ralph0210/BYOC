@@ -43,11 +43,13 @@ export function calculateChallengeStats(
   const elapsed = daysDiff(challenge.start_date, today) + 1
   const remaining =
     today <= challenge.end_date ? daysDiff(today, challenge.end_date) + 1 : 0
+  const total = daysDiff(challenge.start_date, challenge.end_date) + 1
 
   return {
     overall: calculateCompletionPercentage(totalCompleted, totalPossible),
     daysElapsed: elapsed,
     daysRemaining: remaining,
+    totalDays: total,
     byTask,
   }
 }

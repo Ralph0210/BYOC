@@ -65,7 +65,8 @@ STRICT RULES:
             : ""
         return `[CHALLENGE: "${item.name}"]
 - Progress: ${stats.overall || 0}%
-- Day: ${stats.daysElapsed || 0}
+- Day: ${stats.daysElapsed || 1} of ${stats.totalDays || "?"}
+- Days Remaining: ${stats.daysRemaining || 0}
 - Goal: ${item.description || "No description"}${tasksList}`
       } else if (item.type === "task") {
         return `[TASK: "${item.name}"]
