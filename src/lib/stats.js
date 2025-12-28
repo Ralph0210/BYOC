@@ -8,7 +8,8 @@ import {
 export function calculateChallengeStats(
   challenge,
   challengeTasks,
-  completions
+  completions,
+  snoozes = []
 ) {
   if (!challenge || !challengeTasks || challengeTasks.length === 0) {
     return { overall: 0, byTask: {} }
@@ -20,18 +21,26 @@ export function calculateChallengeStats(
   let totalPossible = 0
   let totalCompleted = 0
 
+  // Create a Set of snoozed task+date combinations for fast lookup
+  const snoozedSet = new Set(snoozes.map((s) => `${s.task_id}:${s.date}`))
+
   challengeTasks.forEach((task) => {
     let taskTotal = 0
     let taskCompleted = 0
 
     dateRange.forEach((date) => {
       if (isTaskActiveOnDate(task, date)) {
-        const target = task.frequency_count || 1
-        taskTotal += target
-        const completedCount = completions.filter(
-          (c) => c.task_id === task.id && c.date === date
-        ).length
-        taskCompleted += Math.min(completedCount, target)
+        // Check if this task is snoozed for this date
+        const isSnoozed = snoozedSet.has(`${task.id}:${date}`)
+
+        if (!isSnoozed) {
+          const target = task.frequency_count || 1
+          taskTotal += target
+          const completedCount = completions.filter(
+            (c) => c.task_id === task.id && c.date === date
+          ).length
+          taskCompleted += Math.min(completedCount, target)
+        }
       }
     })
     byTask[task.id] = { total: taskTotal, completed: taskCompleted }

@@ -1,6 +1,6 @@
 import { useMemo } from "react"
 import * as LucideIcons from "lucide-react"
-import { Edit2, Trash2, Plus, Minus, Check } from "lucide-react"
+import { Edit2, Trash2, Plus, Minus, Check, Moon } from "lucide-react"
 import { cn } from "../../lib/utils"
 import { TaskAmbientNote } from "../ai/AmbientNote"
 
@@ -11,8 +11,10 @@ export function TaskItem({
   onUncomplete,
   onEdit,
   onDelete,
+  onSnooze,
   date,
   disabled = false,
+  isSnoozed = false,
   lastCompletedDate = null,
   onAmbientClick = null,
 }) {
@@ -62,7 +64,8 @@ export function TaskItem({
         "group flex items-center gap-4 p-4 rounded-2xl transition-all duration-150",
         "bg-white dark:bg-surface-dark",
         "hover:shadow-card",
-        disabled && "opacity-50 cursor-not-allowed"
+        disabled && "opacity-50 cursor-not-allowed",
+        isSnoozed && "opacity-60 bg-gray-50 dark:bg-gray-800/50"
       )}
     >
       {/* Premium Icon Container (Left) */}
@@ -148,8 +151,26 @@ export function TaskItem({
         )}
       </div>
 
-      {/* Actions (Edit/Delete) - Always visible */}
+      {/* Actions (Snooze/Edit/Delete) - Always visible */}
       <div className="flex gap-1">
+        {onSnooze && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onSnooze(task.id, date)
+            }}
+            aria-label={isSnoozed ? "Unsnooze task" : "Snooze task for today"}
+            className={cn(
+              "p-2 rounded-lg transition-colors",
+              isSnoozed
+                ? "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
+                : "hover:bg-gray-100 dark:hover:bg-gray-800 text-tertiary hover:text-purple-500"
+            )}
+            title={isSnoozed ? "Unsnooze" : "Snooze for today"}
+          >
+            <Moon className="w-4 h-4" />
+          </button>
+        )}
         <button
           onClick={(e) => {
             e.stopPropagation()

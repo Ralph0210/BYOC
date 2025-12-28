@@ -1,7 +1,7 @@
 import { useAmbientNotes } from "../../hooks/useAmbientNotes"
 import { useAIConfig } from "../../hooks/useAIConfig"
 import { Sparkles } from "lucide-react"
-import { parseDate, daysDiff } from "../../lib/utils"
+import { daysDiff, getToday } from "../../lib/utils"
 
 /**
  * Header Ambient Note - shown on challenge cards
@@ -9,13 +9,14 @@ import { parseDate, daysDiff } from "../../lib/utils"
  */
 export function AmbientNote({ challenge, tasks, completions, onClick }) {
   const { config } = useAIConfig()
+  const today = getToday()
 
   // Build context data for header note
   const contextData = challenge
     ? {
         challengeId: challenge.id,
         challengeName: challenge.name,
-        daysElapsed: daysDiff(challenge.start_date, new Date()) + 1,
+        daysElapsed: daysDiff(challenge.start_date, today) + 1,
         totalDays: daysDiff(challenge.start_date, challenge.end_date) + 1,
         // REMOVED bucketing: the user wants to see refreshes on task completion
         progress: calculateProgress(challenge, tasks, completions),

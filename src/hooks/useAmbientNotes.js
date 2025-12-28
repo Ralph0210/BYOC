@@ -8,6 +8,15 @@ import { supabase } from "../lib/supabase"
 // In-memory cache for ambient notes
 export const noteCache = new Map()
 
+// Refresh trigger - listeners get notified when cache is cleared
+let refreshListeners = new Set()
+let refreshCounter = 0
+
+function notifyRefresh() {
+  refreshCounter++
+  refreshListeners.forEach((listener) => listener(refreshCounter))
+}
+
 /**
  * Pre-fetch an ambient note and store in cache
  */
@@ -19,15 +28,14 @@ export async function prefetchAmbientNote(
 ) {
   if (!config?.api_key || !contextData) return null
 
-  // Include personality/instructions in cache key to invalidate on settings change
-  const cacheKey = `${contextType}:${JSON.stringify({
-    ...contextData,
-    s: {
-      p: config?.personality_preset,
-      i: config?.custom_instructions,
-      u: { n: userName, d: config?.user_details },
-    },
-  }).slice(0, 200)}`
+  // Create cache key - Put settings FIRST so they don't get truncated (matches useAmbientNotes)
+  // Include custom_personality_prompt so changes invalidate cache
+  const customPromptHash = (config?.custom_personality_prompt || "").slice(
+    0,
+    30
+  )
+  const settingsHash = `${config?.personality_preset || "default"}:${customPromptHash}:${(config?.custom_instructions || "").slice(0, 20)}:${config?.user_details?.slice(0, 15) || ""}`
+  const cacheKey = `${contextType}:${settingsHash}:${JSON.stringify(contextData).slice(0, 120)}`
 
   // 1. Check in-memory cache first
   const cached = noteCache.get(cacheKey)
@@ -143,19 +151,26 @@ export function useAmbientNotes(contextType, contextData) {
     user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0]
   const [note, setNote] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+
+  // Subscribe to refresh events (triggered by clearAmbientCache)
+  useEffect(() => {
+    const listener = (counter) => setRefreshTrigger(counter)
+    refreshListeners.add(listener)
+    return () => refreshListeners.delete(listener)
+  }, [])
 
   const generateNote = useCallback(async () => {
     if (!config?.api_key || !contextData) return
 
-    // Create cache key - Include settings to invalidate when personality changes
-    const cacheKey = `${contextType}:${JSON.stringify({
-      ...contextData,
-      s: {
-        p: config?.personality_preset,
-        i: config?.custom_instructions,
-        u: { n: userName, d: config?.user_details },
-      },
-    }).slice(0, 200)}`
+    // Create cache key - Put settings FIRST so they don't get truncated
+    // Include custom_personality_prompt so changes invalidate cache
+    const customPromptHash = (config?.custom_personality_prompt || "").slice(
+      0,
+      30
+    )
+    const settingsHash = `${config?.personality_preset || "default"}:${customPromptHash}:${(config?.custom_instructions || "").slice(0, 20)}:${config?.user_details?.slice(0, 15) || ""}`
+    const cacheKey = `${contextType}:${settingsHash}:${JSON.stringify(contextData).slice(0, 120)}`
 
     // Check in-memory cache first
     const cached = noteCache.get(cacheKey)
@@ -293,6 +308,7 @@ Write a SHORT, warm encouragement (4-10 words). Follow your personality guidelin
       p: config?.personality_preset,
       u: config?.user_details,
     }), // Add personality/user to dependency to trigger re-run
+    refreshTrigger, // Re-run when cache is cleared
   ])
 
   useEffect(() => {
@@ -335,7 +351,8 @@ export function useReturnDetection() {
   return { daysAway, isReturning, dismissReturn }
 }
 
-// Clear cache on demand
+// Clear cache on demand and trigger refresh in all components
 export function clearAmbientCache() {
   noteCache.clear()
+  notifyRefresh() // Notify all useAmbientNotes hooks to re-generate
 }

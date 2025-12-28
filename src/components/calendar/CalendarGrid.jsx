@@ -13,6 +13,7 @@ import {
 export function CalendarGrid({
   tasks,
   completions,
+  snoozes = [],
   startDate,
   endDate,
   selectedDate,
@@ -20,6 +21,11 @@ export function CalendarGrid({
   weeksToShow = 12,
 }) {
   const today = getToday()
+
+  // Create a Set of snoozed task+date combinations for fast lookup
+  const snoozedSet = useMemo(() => {
+    return new Set(snoozes.map((s) => `${s.task_id}:${s.date}`))
+  }, [snoozes])
 
   // Generate weeks data
   const weeks = useMemo(() => {
@@ -147,14 +153,20 @@ export function CalendarGrid({
                     const activeTasks = tasks.filter((t) =>
                       isTaskActiveOnDate(t, day.date)
                     )
-                    const activeTasksCount = activeTasks.length
+
+                    // Exclude snoozed tasks from the count
+                    const nonSnoozedTasks = activeTasks.filter(
+                      (t) => !snoozedSet.has(`${t.id}:${day.date}`)
+                    )
+                    const activeTasksCount = nonSnoozedTasks.length
 
                     const completedTaskIds = [
                       ...new Set(dayCompletions.map((c) => c.task_id)),
                     ]
 
-                    // Filter colors to only show valid completions (edge case safety)
+                    // Filter colors to only show valid completions for non-snoozed tasks
                     const colors = completedTaskIds
+                      .filter((id) => !snoozedSet.has(`${id}:${day.date}`))
                       .map((id) => taskColors[id])
                       .filter(Boolean)
 

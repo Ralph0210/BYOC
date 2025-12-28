@@ -1,10 +1,17 @@
 import { useState, useEffect } from "react"
-import { Sparkles, MessageCircle, ChevronDown, ChevronUp } from "lucide-react"
+import {
+  Sparkles,
+  MessageCircle,
+  ChevronDown,
+  ChevronUp,
+  User,
+} from "lucide-react"
 import { useAIConfig } from "../../hooks/useAIConfig"
 import { useAmbientNotes } from "../../hooks/useAmbientNotes"
+import { useAuth } from "../../hooks/useAuth"
 import { Card } from "../ui/Card"
 import { Button } from "../ui/Button"
-import { cn, daysDiff } from "../../lib/utils"
+import { cn, daysDiff, getToday } from "../../lib/utils"
 import { calculateChallengeStats } from "../../lib/stats"
 
 /**
@@ -18,14 +25,19 @@ export function CompanionInsightCard({
   onChat,
 }) {
   const { config } = useAIConfig()
+  const { user } = useAuth()
   const [isExpanded, setIsExpanded] = useState(false)
+  const today = getToday()
+
+  // Check if inner_self personality
+  const isInnerSelf = config?.personality_preset === "inner_self"
 
   // Build context data for challenge-specific note
   const contextData = challenge
     ? {
         challengeId: challenge.id,
         challengeName: challenge.name,
-        daysElapsed: daysDiff(challenge.start_date, new Date()) + 1,
+        daysElapsed: daysDiff(challenge.start_date, today) + 1,
         totalDays: daysDiff(challenge.start_date, challenge.end_date) + 1,
         progress: calculateProgress(challenge, tasks, completions),
         completionsCount: completions?.length || 0,
@@ -35,8 +47,18 @@ export function CompanionInsightCard({
 
   const { note, loading } = useAmbientNotes("insight", contextData)
 
-  const companionName = config?.companion_name || "Companion"
-  const companionPhoto = config?.companion_photo_url
+  // For inner_self: use user's info; otherwise use companion info
+  const userName =
+    user?.user_metadata?.full_name?.split(" ")[0] ||
+    user?.email?.split("@")[0] ||
+    "Me"
+  const userPhoto =
+    user?.user_metadata?.avatar_url || user?.user_metadata?.picture
+
+  const displayName = isInnerSelf
+    ? userName
+    : config?.companion_name || "Companion"
+  const displayPhoto = isInnerSelf ? userPhoto : config?.companion_photo_url
 
   const handleChat = () => {
     if (onChat) {
@@ -54,12 +76,16 @@ export function CompanionInsightCard({
       <div className="flex items-start gap-3">
         {/* Avatar */}
         <div className="flex-shrink-0">
-          {companionPhoto ? (
+          {displayPhoto ? (
             <img
-              src={companionPhoto}
-              alt={companionName}
+              src={displayPhoto}
+              alt={displayName}
               className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/20"
             />
+          ) : isInnerSelf ? (
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white ring-2 ring-purple-500/20">
+              <User className="w-6 h-6" />
+            </div>
           ) : (
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-purple-500 flex items-center justify-center text-white ring-2 ring-primary/20">
               <Sparkles className="w-6 h-6" />
@@ -71,7 +97,7 @@ export function CompanionInsightCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-sm font-semibold text-primary">
-              {companionName}
+              {isInnerSelf ? `${displayName}'s Inner Voice` : displayName}
             </span>
           </div>
           {note ? (

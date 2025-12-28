@@ -24,6 +24,7 @@ import { CalendarGrid } from "./components/calendar/CalendarGrid"
 import { useChallenges } from "./hooks/useChallenges"
 import { useTasks } from "./hooks/useTasks"
 import { useCompletions } from "./hooks/useCompletions"
+import { useSnoozes } from "./hooks/useSnoozes"
 import { useTheme } from "./hooks/useTheme"
 import { useAuth } from "./hooks/useAuth.jsx"
 import { LandingPage } from "./components/landing/LandingPage"
@@ -133,6 +134,9 @@ function App() {
     getCompletionCountForTask,
   } = useCompletions()
 
+  const { snoozes, fetchSnoozes, addSnooze, removeSnooze, isTaskSnoozed } =
+    useSnoozes()
+
   // Initial data fetch
   useEffect(() => {
     fetchChallenges()
@@ -158,11 +162,18 @@ function App() {
               dates[0].start
             )
             fetchCompletions(taskIds, startDate, today)
+            fetchSnoozes(taskIds, startDate, today)
           }
         })
       }
     }
-  }, [challenges, today, fetchTasksForChallenges, fetchCompletions])
+  }, [
+    challenges,
+    today,
+    fetchTasksForChallenges,
+    fetchCompletions,
+    fetchSnoozes,
+  ])
 
   // Pre-fetch AI notes for neglected tasks
   useEffect(() => {
@@ -220,9 +231,26 @@ function App() {
   // Calculate completion stats for a challenge
   const getCompletionStats = useCallback(
     (challenge, challengeTasks) => {
-      return calculateChallengeStats(challenge, challengeTasks, completions)
+      return calculateChallengeStats(
+        challenge,
+        challengeTasks,
+        completions,
+        snoozes
+      )
     },
-    [completions]
+    [completions, snoozes]
+  )
+
+  // Handle task snooze toggle
+  const handleSnoozeTask = useCallback(
+    async (taskId, date) => {
+      if (isTaskSnoozed(taskId, date)) {
+        await removeSnooze(taskId, date)
+      } else {
+        await addSnooze(taskId, date)
+      }
+    },
+    [isTaskSnoozed, addSnooze, removeSnooze]
   )
 
   // Handle task completion
@@ -443,6 +471,7 @@ function App() {
           <CalendarGrid
             tasks={challengeTasks}
             completions={completions}
+            snoozes={snoozes}
             startDate={challenge.start_date}
             endDate={challenge.end_date}
             selectedDate={selectedDate}
@@ -532,6 +561,8 @@ function App() {
                   onUncomplete={handleUncompleteTask}
                   onEdit={handleEditTask}
                   onDelete={handleDeleteTask}
+                  onSnooze={handleSnoozeTask}
+                  isSnoozed={isTaskSnoozed(task.id, selectedDate)}
                   date={selectedDate}
                   disabled={isFutureDate}
                 />

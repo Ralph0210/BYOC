@@ -50,6 +50,9 @@ export function AIConfigForm() {
     companion_photo_url: "",
   })
 
+  // Track initial load to avoid closing form on config updates
+  const initialLoadRef = useRef(true)
+
   // Sync with config when loaded
   useEffect(() => {
     if (config) {
@@ -67,9 +70,12 @@ export function AIConfigForm() {
       }))
       setPhotoPreview(config.companion_photo_url || null)
 
-      if (config.api_key) {
+      // Only auto-close on initial load if API key exists
+      // Don't close on subsequent updates (like after save)
+      if (initialLoadRef.current && config.api_key) {
         setIsEditing(false)
       }
+      initialLoadRef.current = false
     }
   }, [config])
 
@@ -215,6 +221,8 @@ export function AIConfigForm() {
     setMessage(null)
     try {
       await updateConfig(formData)
+      // Small delay to ensure config state has propagated to all listeners
+      await new Promise((resolve) => setTimeout(resolve, 100))
       // Clear ambient cache so new personality takes effect immediately
       clearAmbientCache()
       setMessage({ type: "success", text: "Settings saved successfully." })
@@ -386,78 +394,80 @@ export function AIConfigForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Companion Identity Section */}
-        <div className="p-4 rounded-xl bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 space-y-4">
-          <h4 className="text-sm font-semibold flex items-center gap-2">
-            <User className="w-4 h-4 text-primary" />
-            Companion Identity
-          </h4>
+        {/* Companion Identity Section - Hidden for Inner Self */}
+        {formData.personality_preset !== "inner_self" && (
+          <div className="p-4 rounded-xl bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 space-y-4">
+            <h4 className="text-sm font-semibold flex items-center gap-2">
+              <User className="w-4 h-4 text-primary" />
+              Companion Identity
+            </h4>
 
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Photo Upload */}
-            <div className="flex flex-col items-center gap-2">
-              <div className="relative group">
-                {photoPreview ? (
-                  <div className="relative">
-                    <img
-                      src={photoPreview}
-                      alt="Companion"
-                      className="w-20 h-20 rounded-full object-cover ring-2 ring-primary/20"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRemovePhoto}
-                      className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <label className="w-20 h-20 rounded-full bg-surface-light dark:bg-white/10 border-2 border-dashed border-primary/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors">
-                    {uploadingPhoto ? (
-                      <Loader2 className="w-6 h-6 text-primary animate-spin" />
-                    ) : (
-                      <>
-                        <Camera className="w-6 h-6 text-tertiary" />
-                        <span className="text-[10px] text-tertiary mt-1">
-                          Upload
-                        </span>
-                      </>
-                    )}
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoUpload}
-                      className="hidden"
-                      disabled={uploadingPhoto}
-                    />
-                  </label>
-                )}
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Photo Upload */}
+              <div className="flex flex-col items-center gap-2">
+                <div className="relative group">
+                  {photoPreview ? (
+                    <div className="relative">
+                      <img
+                        src={photoPreview}
+                        alt="Companion"
+                        className="w-20 h-20 rounded-full object-cover ring-2 ring-primary/20"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="w-20 h-20 rounded-full bg-surface-light dark:bg-white/10 border-2 border-dashed border-primary/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors">
+                      {uploadingPhoto ? (
+                        <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                      ) : (
+                        <>
+                          <Camera className="w-6 h-6 text-tertiary" />
+                          <span className="text-[10px] text-tertiary mt-1">
+                            Upload
+                          </span>
+                        </>
+                      )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                        disabled={uploadingPhoto}
+                      />
+                    </label>
+                  )}
+                </div>
+                <p className="text-[10px] text-tertiary">Max 2MB</p>
               </div>
-              <p className="text-[10px] text-tertiary">Max 2MB</p>
-            </div>
 
-            {/* Companion Name */}
-            <div className="flex-1">
-              <label className="block text-xs font-medium mb-1 text-secondary">
-                Name
-              </label>
-              <input
-                type="text"
-                value={formData.companion_name}
-                onChange={(e) =>
-                  setFormData({ ...formData, companion_name: e.target.value })
-                }
-                className="w-full p-2.5 rounded-lg border dark:border-white/10 bg-white dark:bg-black/20 text-sm"
-                placeholder="e.g., Sage, Buddy, Coach..."
-              />
-              <p className="text-xs text-tertiary mt-2">
-                Give your AI companion a name to make it feel more personal.
-              </p>
+              {/* Companion Name */}
+              <div className="flex-1">
+                <label className="block text-xs font-medium mb-1 text-secondary">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.companion_name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, companion_name: e.target.value })
+                  }
+                  className="w-full p-2.5 rounded-lg border dark:border-white/10 bg-white dark:bg-black/20 text-sm"
+                  placeholder="e.g., Sage, Buddy, Coach..."
+                />
+                <p className="text-xs text-tertiary mt-2">
+                  Give your AI companion a name to make it feel more personal.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Provider */}
         <div>
@@ -633,22 +643,41 @@ You are a playful, witty companion who uses humor to motivate. You speak like a 
           </div>
         )}
 
-        {/* User Context (Bio) */}
+        {/* User Context (Bio) - Required for Inner Self */}
         <div>
           <label className="block text-sm font-medium mb-1">
             About You{" "}
-            <span className="text-secondary font-normal">(Optional)</span>
+            {formData.personality_preset === "inner_self" ? (
+              <span className="text-primary font-normal">
+                (Required for Inner Self)
+              </span>
+            ) : (
+              <span className="text-secondary font-normal">(Optional)</span>
+            )}
           </label>
+          {formData.personality_preset === "inner_self" && (
+            <p className="text-xs text-purple-500 mb-2">
+              ✨ Tell me about yourself so I can speak in your voice. What
+              drives you? What are your goals?
+            </p>
+          )}
           <textarea
             value={formData.user_details || ""}
             onChange={(e) =>
               setFormData({ ...formData, user_details: e.target.value })
             }
             className="w-full p-3 rounded-lg border dark:border-white/10 bg-transparent text-sm min-h-[80px]"
-            placeholder="Help the AI know you better. E.g., 'I'm a busy student trying to code more', 'I respond well to tough love', 'I'm a new parent'..."
+            placeholder={
+              formData.personality_preset === "inner_self"
+                ? "Tell me who you are—your goals, values, what motivates you, what you struggle with. The more you share, the more authentic your inner voice becomes."
+                : "Help the AI know you better. E.g., 'I'm a busy student trying to code more', 'I respond well to tough love', 'I'm a new parent'..."
+            }
+            required={formData.personality_preset === "inner_self"}
           />
           <p className="text-xs text-tertiary mt-1">
-            Context for the AI to personalize its responses to you.
+            {formData.personality_preset === "inner_self"
+              ? "This is how your inner voice knows what to say. Be specific!"
+              : "Context for the AI to personalize its responses to you."}
           </p>
         </div>
 

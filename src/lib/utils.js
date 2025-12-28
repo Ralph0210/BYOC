@@ -64,7 +64,7 @@ export function daysDiff(date1, date2) {
   const d1 = parseDate(date1)
   const d2 = parseDate(date2)
   const diffTime = Math.abs(d2 - d1)
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24))
 }
 
 /**
