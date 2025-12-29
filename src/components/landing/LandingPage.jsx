@@ -312,7 +312,12 @@ export function LandingPage({
             >
               Privacy
             </button>
-            <a href="#" className="hover:text-primary transition-colors">
+            <a
+              href="https://github.com/Ralph0210/BYOC"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-primary transition-colors"
+            >
               Open Source
             </a>
           </div>
