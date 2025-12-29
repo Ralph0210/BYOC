@@ -1,11 +1,5 @@
 import { useState, useEffect } from "react"
-import {
-  Sparkles,
-  MessageCircle,
-  ChevronDown,
-  ChevronUp,
-  User,
-} from "lucide-react"
+import { Sparkles, MessageCircle, User } from "lucide-react"
 import { useAIConfig } from "../../hooks/useAIConfig"
 import { useAmbientNotes } from "../../hooks/useAmbientNotes"
 import { useAuth } from "../../hooks/useAuth"
@@ -26,7 +20,6 @@ export function CompanionInsightCard({
 }) {
   const { config } = useAIConfig()
   const { user } = useAuth()
-  const [isExpanded, setIsExpanded] = useState(false)
   const today = getToday()
 
   // Check if inner_self personality
@@ -97,15 +90,10 @@ export function CompanionInsightCard({
               {isInnerSelf ? `${displayName}'s Inner Voice` : displayName}
             </span>
           </div>
+
+          {/* Full message - no truncation */}
           {note ? (
-            <p
-              className={cn(
-                "text-sm text-secondary leading-relaxed",
-                !isExpanded && "line-clamp-3"
-              )}
-            >
-              {note}
-            </p>
+            <p className="text-sm text-secondary leading-relaxed">{note}</p>
           ) : loading ? (
             <p className="text-sm text-tertiary italic animate-pulse">
               Thinking...
@@ -114,7 +102,7 @@ export function CompanionInsightCard({
 
           {/* Actions */}
           {note && (
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2 mt-3">
               <Button
                 variant="ghost"
                 size="sm"
@@ -127,21 +115,6 @@ export function CompanionInsightCard({
             </div>
           )}
         </div>
-
-        {/* Expand/Collapse Button */}
-        {note && (
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1 rounded-lg hover:bg-white/20 dark:hover:bg-white/10 transition-colors flex-shrink-0"
-            aria-label={isExpanded ? "Collapse insight" : "Expand insight"}
-          >
-            {isExpanded ? (
-              <ChevronUp className="w-4 h-4 text-tertiary" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-tertiary" />
-            )}
-          </button>
-        )}
       </div>
     </Card>
   )

@@ -1,19 +1,21 @@
 import { cn } from "../../lib/utils"
 
 /**
- * Soft Focus Button Component
- * Clean, accessible buttons with consistent styling
+ * BYOC Button Component
+ * Consistent button styling with design system tokens
  */
 
 const variants = {
   primary: "btn-primary",
   secondary:
-    "bg-surface text-primary border border-app hover:bg-surface-elevated",
+    "bg-surface text-primary border border-border hover:bg-surface-hover",
   ghost: "btn-ghost",
   danger: "bg-red-500 text-white hover:bg-red-600",
+  accent: "bg-accent text-white hover:bg-accent-hover",
 }
 
 const sizes = {
+  xs: "px-2.5 py-1 text-xs",
   sm: "px-3 py-1.5 text-sm",
   md: "px-4 py-2.5 text-sm",
   lg: "px-6 py-3 text-base",
@@ -27,6 +29,7 @@ export function Button({
   disabled,
   loading,
   icon: Icon,
+  iconPosition = "left",
   ...props
 }) {
   return (
@@ -58,10 +61,13 @@ export function Button({
             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
           />
         </svg>
-      ) : Icon ? (
+      ) : Icon && iconPosition === "left" ? (
         <Icon className="h-4 w-4" />
       ) : null}
       {children}
+      {Icon && iconPosition === "right" && !loading && (
+        <Icon className="h-4 w-4" />
+      )}
     </button>
   )
 }

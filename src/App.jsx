@@ -12,6 +12,11 @@ import {
   Trash2,
 } from "lucide-react"
 import { Header } from "./components/layout/Header"
+import {
+  Sidebar,
+  MobileHeader,
+  SidebarToggle,
+} from "./components/layout/Sidebar"
 import { Button } from "./components/ui/Button"
 import { Card } from "./components/ui/Card"
 import { Modal } from "./components/ui/Modal"
@@ -46,7 +51,7 @@ import {
   EmptyStateNote,
 } from "./components/ai/AmbientNote"
 import { ConversationPanel } from "./components/ai/ConversationPanel"
-import { AIConfigForm } from "./components/ai/AIConfigForm"
+import { SettingsPanel } from "./components/settings/SettingsPanel"
 import {
   useReturnDetection,
   prefetchAmbientNote,
@@ -86,6 +91,9 @@ function App() {
   const today = getToday()
   const [expandedChallenges, setExpandedChallenges] = useState({})
   const [selectedDates, setSelectedDates] = useState({}) // Per-challenge date selection
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [selectedChallengeId, setSelectedChallengeId] = useState(null)
 
   // Modals
   const [showChallengeModal, setShowChallengeModal] = useState(false)
@@ -141,6 +149,16 @@ function App() {
   useEffect(() => {
     fetchChallenges()
   }, [fetchChallenges])
+
+  // Auto-select first challenge if none selected
+  useEffect(() => {
+    if (!selectedChallengeId && challenges.length > 0) {
+      const activeChallenges = challenges.filter((c) => !c.is_archived)
+      if (activeChallenges.length > 0) {
+        setSelectedChallengeId(activeChallenges[0].id)
+      }
+    }
+  }, [challenges, selectedChallengeId])
 
   // Fetch all tasks and completions when challenges load
   useEffect(() => {
@@ -374,6 +392,113 @@ function App() {
     setSelectedChallengeForTask(challenge)
     setEditingTask(null)
     setShowTaskModal(true)
+  }
+
+  // Render single challenge detail view (for sidebar layout)
+  const renderChallengeDetail = (challenge) => {
+    const challengeTasks = tasks.filter((t) => t.challenge_id === challenge.id)
+    const stats = getCompletionStats(challenge, challengeTasks)
+    const daysRemaining =
+      challenge.end_date >= today ? daysDiff(today, challenge.end_date) + 1 : 0
+
+    // Today's Progress
+    let todayTarget = 0
+    let todayDone = 0
+    challengeTasks.forEach((task) => {
+      if (isTaskActiveOnDate(task, today)) {
+        todayTarget += task.frequency_count || 1
+        const taskCompletions = completions.filter(
+          (c) => c.task_id === task.id && c.date === today
+        ).length
+        todayDone += Math.min(taskCompletions, task.frequency_count || 1)
+      }
+    })
+
+    return (
+      <Card padding="lg" className="overflow-hidden">
+        {/* Challenge Header */}
+        <div className="flex items-start justify-between mb-6">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-h1 text-primary truncate">
+                {challenge.name}
+              </h1>
+              {challenge.reward_text && (
+                <Gift className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-secondary">
+              <span>
+                {formatDisplayDate(challenge.start_date)} →{" "}
+                {formatDisplayDate(challenge.end_date)}
+              </span>
+              {daysRemaining > 0 && (
+                <span
+                  className={cn(
+                    daysRemaining <= 3 && "text-orange-500 font-medium"
+                  )}
+                >
+                  {daysRemaining} day{daysRemaining !== 1 ? "s" : ""} left
+                </span>
+              )}
+              <span>
+                {challengeTasks.length} task
+                {challengeTasks.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+          </div>
+
+          {/* Stats & Actions */}
+          <div className="flex items-center gap-4 ml-4">
+            {/* Progress */}
+            <div className="text-right">
+              <div className="text-3xl font-bold text-primary">
+                {stats.overall}%
+              </div>
+              <div className="text-xs text-tertiary">progress</div>
+              {todayTarget > 0 && (
+                <div className="text-xs font-medium text-secondary mt-1">
+                  Today: {todayDone}/{todayTarget}
+                </div>
+              )}
+            </div>
+
+            {/* Edit/Delete */}
+            <div className="flex gap-1">
+              <button
+                onClick={() => handleEditChallenge(challenge)}
+                className="p-2 rounded-lg hover:bg-surface-hover transition-colors"
+                aria-label="Edit challenge"
+              >
+                <Edit2 className="w-4 h-4 text-tertiary hover:text-primary" />
+              </button>
+              <button
+                onClick={() => handleDeleteChallenge(challenge.id)}
+                className="p-2 rounded-lg hover:bg-surface-hover transition-colors"
+                aria-label="Delete challenge"
+              >
+                <Trash2 className="w-4 h-4 text-tertiary hover:text-red-500" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Ambient Note */}
+        <div
+          onClick={() => handleOpenChat(challenge)}
+          className="cursor-pointer hover:opacity-80 transition-opacity mb-4"
+        >
+          <AmbientNote
+            challenge={challenge}
+            tasks={challengeTasks}
+            completions={completions}
+          />
+        </div>
+
+        {/* Challenge Content (Calendar, Tasks, etc.) */}
+        {renderChallengeContent(challenge)}
+      </Card>
+    )
   }
 
   // Render expanded challenge content
@@ -766,16 +891,92 @@ function App() {
     )
   }
 
+  // Get active challenges for sidebar
+  const activeChallenges = challenges.filter((c) => !c.is_archived)
+
+  // Get currently selected challenge
+  const selectedChallenge = activeChallenges.find(
+    (c) => c.id === selectedChallengeId
+  )
+
   return (
-    <div className="min-h-screen bg-app">
-      <Header
-        onOpenAISettings={() => setShowAISettings(true)}
-        onSignOut={handleSignOut}
+    <div className="app-layout bg-app">
+      {/* Sidebar */}
+      <Sidebar
+        challenges={activeChallenges}
+        tasks={tasks}
+        completions={completions}
+        selectedChallengeId={selectedChallengeId}
+        onSelectChallenge={setSelectedChallengeId}
+        onNewChallenge={() => setShowChallengeModal(true)}
+        onOpenSettings={() => setShowAISettings(true)}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
 
-      <main className="max-w-2xl mx-auto px-6 pb-12 pt-6">{renderHome()}</main>
+      {/* Sidebar Toggle (shows when sidebar is hidden) */}
+      <SidebarToggle
+        onClick={() => setSidebarCollapsed(false)}
+        isVisible={sidebarCollapsed}
+      />
 
-      {/* FAB removed - replaced with inline invite card */}
+      {/* Main Content */}
+      <div
+        className={cn("main-content", sidebarCollapsed && "sidebar-collapsed")}
+      >
+        {/* Mobile Header */}
+        <MobileHeader
+          onMenuClick={() => setSidebarOpen(true)}
+          title={selectedChallenge?.name || "BYOC"}
+        />
+
+        {/* Main Content Area */}
+        <main className="main-content-inner">
+          {/* Return After Absence Note */}
+          {isReturning && (
+            <ReturnNote daysAway={daysAway} onDismiss={dismissReturn} />
+          )}
+
+          {selectedChallenge ? (
+            <div className="space-y-6">
+              {/* Companion Insight Card */}
+              {isCompanionEnabled && (
+                <CompanionInsightCard
+                  challenge={selectedChallenge}
+                  tasks={tasks.filter(
+                    (t) => t.challenge_id === selectedChallenge.id
+                  )}
+                  completions={completions}
+                  onChat={() => handleOpenChat(selectedChallenge)}
+                />
+              )}
+
+              {/* Challenge Detail */}
+              {renderChallengeDetail(selectedChallenge)}
+            </div>
+          ) : activeChallenges.length === 0 ? (
+            <Card padding="lg" className="text-center">
+              <div className="py-8">
+                <h2 className="text-h2 mb-2">Welcome to BYOC</h2>
+                <p className="text-secondary mb-6">
+                  Create your first challenge to get started
+                </p>
+                <Button onClick={() => setShowChallengeModal(true)}>
+                  Create Your First Challenge
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <div className="text-center py-12 text-tertiary">
+              Select a challenge from the sidebar
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* FAB removed - replaced with sidebar button */}
 
       {/* Challenge Modal */}
       <Modal
@@ -869,14 +1070,14 @@ function App() {
         variant="danger"
       />
 
-      {/* AI Settings Modal */}
+      {/* Settings Modal */}
       <Modal
         isOpen={showAISettings}
         onClose={() => setShowAISettings(false)}
-        title="AI Settings"
+        title="Settings"
         size="lg"
       >
-        <AIConfigForm />
+        <SettingsPanel onClose={() => setShowAISettings(false)} />
       </Modal>
 
       {/* Chat Panel */}

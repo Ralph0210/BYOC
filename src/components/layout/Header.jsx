@@ -35,7 +35,7 @@ export function Header({ onOpenAISettings, onSignOut }) {
       <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
         {/* Wordmark Logo */}
         <div className="flex items-center gap-3">
-          <span className="wordmark">Path</span>
+          <span className="wordmark">BYOC</span>
         </div>
 
         {/* Right side actions */}
