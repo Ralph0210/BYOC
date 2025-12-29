@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react"
 import { supabase } from "../lib/supabase"
+import { encryptData, decryptData } from "../lib/crypto"
 
 export function useTasks() {
   const [tasks, setTasks] = useState([])
@@ -26,20 +27,35 @@ export function useTasks() {
 
       if (fetchError) throw fetchError
 
+      // Decrypt sensitive fields
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      const decryptedTasks = await Promise.all(
+        (data || []).map(async (task) => {
+          if (!user) return task
+          return {
+            ...task,
+            name: (await decryptData(task.name, user.id)) || task.name,
+            note: (await decryptData(task.note, user.id)) || task.note,
+          }
+        })
+      )
+
       // If fetching for a specific challenge, merge with existing tasks
       if (challengeId) {
         setTasks((prev) => {
           // Remove old tasks for this challenge, add new ones
           const otherTasks = prev.filter((t) => t.challenge_id !== challengeId)
-          return [...otherTasks, ...(data || [])]
+          return [...otherTasks, ...decryptedTasks]
         })
         lastChallengeIdRef.current = challengeId
       } else {
         // If fetching all, replace entirely
-        setTasks(data || [])
+        setTasks(decryptedTasks)
       }
 
-      return data
+      return decryptedTasks
     } catch (err) {
       setError(err.message)
       return []
@@ -66,8 +82,24 @@ export function useTasks() {
         .order("sort_order", { ascending: true })
 
       if (fetchError) throw fetchError
-      setTasks(data || [])
-      return data
+
+      // Decrypt sensitive fields
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      const decryptedTasks = await Promise.all(
+        (data || []).map(async (task) => {
+          if (!user) return task
+          return {
+            ...task,
+            name: (await decryptData(task.name, user.id)) || task.name,
+            note: (await decryptData(task.note, user.id)) || task.note,
+          }
+        })
+      )
+
+      setTasks(decryptedTasks)
+      return decryptedTasks
     } catch (err) {
       setError(err.message)
       return []
@@ -90,16 +122,37 @@ export function useTasks() {
 
       const maxSortOrder = existingTasks?.[0]?.sort_order ?? -1
 
+      // Encrypt sensitive fields
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error("You must be logged in to create a task")
+
+      const encryptedData = {
+        ...taskData,
+        name: await encryptData(taskData.name, user.id),
+        note: taskData.note ? await encryptData(taskData.note, user.id) : null,
+      }
+
       const { data, error: createError } = await supabase
         .from("tasks")
-        .insert([{ ...taskData, sort_order: maxSortOrder + 1 }])
+        .insert([{ ...encryptedData, sort_order: maxSortOrder + 1 }])
         .select()
         .single()
 
       if (createError) throw createError
 
-      setTasks((prev) => [...prev, data])
-      return data
+      // Return decrypted local object so UI updates immediately without re-fetch
+      // Note: we can just use the memory data we have, but we need the ID/Created_at from DB.
+      // So we decrypt the returned row or merge.
+      const decryptedNewTask = {
+        ...data,
+        name: taskData.name, // optimization: use input plaintext
+        note: taskData.note,
+      }
+
+      setTasks((prev) => [...prev, decryptedNewTask])
+      return decryptedNewTask
     } catch (err) {
       setError(err.message)
       return null
@@ -110,17 +163,39 @@ export function useTasks() {
     setError(null)
 
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error("User not authenticated")
+
+      const encryptedUpdates = { ...updates }
+      if (updates.name) {
+        encryptedUpdates.name = await encryptData(updates.name, user.id)
+      }
+      if (updates.note !== undefined) {
+        // Handle explicit null or string
+        encryptedUpdates.note = updates.note
+          ? await encryptData(updates.note, user.id)
+          : null
+      }
+
       const { data, error: updateError } = await supabase
         .from("tasks")
-        .update(updates)
+        .update(encryptedUpdates)
         .eq("id", id)
         .select()
         .single()
 
       if (updateError) throw updateError
 
-      setTasks((prev) => prev.map((t) => (t.id === id ? data : t)))
-      return data
+      const decryptedData = {
+        ...data,
+        name: (await decryptData(data.name, user.id)) || data.name,
+        note: (await decryptData(data.note, user.id)) || data.note,
+      }
+
+      setTasks((prev) => prev.map((t) => (t.id === id ? decryptedData : t)))
+      return decryptedData
     } catch (err) {
       setError(err.message)
       return null

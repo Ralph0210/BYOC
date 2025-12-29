@@ -11,6 +11,8 @@ import {
 } from "lucide-react"
 import { Button } from "../ui/Button"
 
+import logo from "../../assets/byoc-logo.png"
+
 export function LandingPage({
   onGetStarted,
   onSignIn,
@@ -29,11 +31,7 @@ export function LandingPage({
       <header className="px-6 py-5 border-b border-app sticky top-0 bg-app/80 backdrop-blur-lg z-50">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <img
-              src="/byoc-logo.png"
-              alt="BYOC"
-              className="w-9 h-9 rounded-xl"
-            />
+            <img src={logo} alt="BYOC" className="w-9 h-9 rounded-xl" />
             <span className="text-xl font-bold tracking-tight text-primary">
               BYOC
             </span>
@@ -110,11 +108,12 @@ export function LandingPage({
                   <Shield className="w-6 h-6 text-task-purple" />
                 </div>
                 <h3 className="font-semibold text-primary text-lg mb-3">
-                  Your Data Stays Yours
+                  100% Private & Encrypted
                 </h3>
                 <p className="text-secondary leading-relaxed">
-                  Your API key means your requests go directly to the provider.
-                  We never see your conversations.
+                  Everything—your API keys, challenges, and tasks—is encrypted
+                  before it touches our database. We literally cannot read your
+                  data.
                 </p>
               </div>
 

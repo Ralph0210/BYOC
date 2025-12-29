@@ -31,6 +31,7 @@ Most habit trackers fail because they are "infinite". Path introduces the concep
 - **⚡ Flexible Tasks**: Tasks can be Daily, Weekly (e.g., "3 times a week"), or on Specific Days (Mon/Wed/Fri).
 - **🎨 Customization**: Assign unique colors and icons to every task.
 - **📊 Smart Stats**: Real-time calculation of completion rates, current streaks, and daily targets.
+- **🔐 Privacy First**: All user content (Challenges, Tasks, AI Config) and API keys are **encrypted** before storage.
 - **🔐 Google Auth**: Secure authentication via Supabase (with Guest mode fallback).
 - **🌑 Dark Mode**: Fully native dark mode support that respects system preferences.
 

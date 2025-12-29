@@ -39,12 +39,12 @@ async function deriveKey(userId) {
 }
 
 /**
- * Encrypts an API key
- * @param {string} plainText - The plain text API key
+ * Encrypts data using AES-GCM
+ * @param {string} plainText - The plain text to encrypt
  * @param {string} userId - The user's unique ID
  * @returns {Promise<string>} - Base64 encoded encrypted data (iv + ciphertext)
  */
-export async function encryptApiKey(plainText, userId) {
+export async function encryptData(plainText, userId) {
   if (!plainText) return null
 
   const encoder = new TextEncoder()
@@ -70,12 +70,12 @@ export async function encryptApiKey(plainText, userId) {
 }
 
 /**
- * Decrypts an API key
+ * Decrypts data using AES-GCM
  * @param {string} encryptedData - Base64 encoded encrypted data with "encrypted:" prefix
  * @param {string} userId - The user's unique ID
- * @returns {Promise<string>} - The decrypted API key
+ * @returns {Promise<string>} - The decrypted text
  */
-export async function decryptApiKey(encryptedData, userId) {
+export async function decryptData(encryptedData, userId) {
   if (!encryptedData) return null
 
   // If not encrypted (legacy plain text), return as-is
@@ -103,17 +103,29 @@ export async function decryptApiKey(encryptedData, userId) {
 
     return new TextDecoder().decode(decrypted)
   } catch (error) {
-    console.error("Failed to decrypt API key:", error)
-    // Return null on decryption failure (corrupted or wrong key)
+    console.error("Failed to decrypt data:", error)
+    // Return the original data on failure (fallback) instead of null to avoid UI crashing on partial failures?
+    // Actually, if it's encrypted but fails to decrypt, showing ciphertext is ugly.
+    // Returning null is safer for logic, but might blank out fields.
+    // Let's return original string if decryption fails, assuming it might not be encrypted correctly?
+    // User requested "my supabase can see nothing". If I return null, data is lost in UI.
+    // If I return original, UI shows "encrypted:...".
+    // I'll stick to returning null or throwing?
+    // Existing code returned null. I'll stick to null for consistency, but maybe I should return original for partial fails?
+    // No, existing code returns null.
     return null
   }
 }
 
+// Legacy exports for backward compatibility if needed, or aliases
+export const encryptApiKey = encryptData
+export const decryptApiKey = decryptData
+
 /**
- * Checks if an API key is encrypted
- * @param {string} apiKey - The API key to check
+ * Checks if a value is encrypted
+ * @param {string} value - The value to check
  * @returns {boolean} - True if encrypted
  */
-export function isEncrypted(apiKey) {
-  return apiKey?.startsWith("encrypted:")
+export function isEncrypted(value) {
+  return value?.startsWith("encrypted:")
 }
