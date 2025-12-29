@@ -1096,6 +1096,8 @@ function App() {
           onClick={() => handleOpenChat(selectedChallenge)}
           className="fixed bottom-6 right-6 z-40 rounded-full shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-xl overflow-hidden"
           style={{
+            background:
+              "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)",
             boxShadow:
               "0 4px 14px rgba(99, 102, 241, 0.4), 0 2px 6px rgba(0, 0, 0, 0.1)",
           }}
