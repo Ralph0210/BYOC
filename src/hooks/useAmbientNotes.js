@@ -163,14 +163,20 @@ export function useAmbientNotes(contextType, contextData) {
   const generateNote = useCallback(async () => {
     if (!config?.api_key || !contextData) return
 
-    // Create cache key - Put settings FIRST so they don't get truncated
-    // Include custom_personality_prompt so changes invalidate cache
+    // Create cache key - Include key context fields explicitly to avoid truncation issues
+    // This ensures the cache invalidates when completions change
     const customPromptHash = (config?.custom_personality_prompt || "").slice(
       0,
       30
     )
     const settingsHash = `${config?.personality_preset || "default"}:${customPromptHash}:${(config?.custom_instructions || "").slice(0, 20)}:${config?.user_details?.slice(0, 15) || ""}`
-    const cacheKey = `${contextType}:${settingsHash}:${JSON.stringify(contextData).slice(0, 120)}`
+
+    // Build explicit context hash to ensure completionsCount and progress are included
+    const contextHash = contextData
+      ? `${contextData.challengeId || ""}:${contextData.completionsCount || 0}:${contextData.progress || 0}:${contextData.trend || ""}:${contextData.daysElapsed || ""}`
+      : "no-context"
+
+    const cacheKey = `${contextType}:${settingsHash}:${contextHash}`
 
     // Check in-memory cache first
     const cached = noteCache.get(cacheKey)

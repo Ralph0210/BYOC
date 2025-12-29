@@ -1,8 +1,105 @@
-import { useMemo } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import * as LucideIcons from "lucide-react"
-import { Edit2, Trash2, Plus, Minus, Check, Moon } from "lucide-react"
+import {
+  Edit2,
+  Trash2,
+  Plus,
+  Minus,
+  Check,
+  Moon,
+  MoreVertical,
+} from "lucide-react"
 import { cn } from "../../lib/utils"
 import { TaskAmbientNote } from "../ai/AmbientNote"
+
+/**
+ * Dropdown menu for task actions
+ */
+function TaskActionsDropdown({
+  task,
+  date,
+  isSnoozed,
+  onSnooze,
+  onEdit,
+  onDelete,
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+      return () => document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [isOpen])
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          setIsOpen(!isOpen)
+        }}
+        aria-label="More actions"
+        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-tertiary hover:text-primary"
+      >
+        <MoreVertical className="w-4 h-4" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-10 z-50 min-w-[140px] rounded-lg overflow-hidden shadow-lg border border-border bg-white dark:bg-gray-900">
+          {onSnooze && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onSnooze(task.id, date)
+                setIsOpen(false)
+              }}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors",
+                isSnoozed
+                  ? "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
+                  : "hover:bg-surface-hover text-secondary hover:text-primary"
+              )}
+            >
+              <Moon className="w-4 h-4" />
+              <span>{isSnoozed ? "Unsnooze" : "Snooze"}</span>
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit(task)
+              setIsOpen(false)
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-surface-hover transition-colors text-secondary hover:text-primary"
+          >
+            <Edit2 className="w-4 h-4" />
+            <span>Edit</span>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(task.id)
+              setIsOpen(false)
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-surface-hover transition-colors text-secondary hover:text-task-red"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Delete</span>
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function TaskItem({
   task,
@@ -61,11 +158,10 @@ export function TaskItem({
   return (
     <div
       className={cn(
-        "group flex items-center gap-4 p-4 rounded-2xl transition-all duration-150",
-        "bg-white dark:bg-surface-dark",
-        "hover:shadow-card",
+        "group flex items-center gap-4 p-4 rounded-xl transition-all duration-200",
+        "task-item-skeu",
         disabled && "opacity-50 cursor-not-allowed",
-        isSnoozed && "opacity-60 bg-gray-50 dark:bg-gray-800/50"
+        isSnoozed && "opacity-50"
       )}
     >
       {/* Premium Icon Container (Left) */}
@@ -151,47 +247,15 @@ export function TaskItem({
         )}
       </div>
 
-      {/* Actions (Snooze/Edit/Delete) - Always visible */}
-      <div className="flex gap-1">
-        {onSnooze && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onSnooze(task.id, date)
-            }}
-            aria-label={isSnoozed ? "Unsnooze task" : "Snooze task for today"}
-            className={cn(
-              "p-2 rounded-lg transition-colors",
-              isSnoozed
-                ? "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
-                : "hover:bg-gray-100 dark:hover:bg-gray-800 text-tertiary hover:text-purple-500"
-            )}
-            title={isSnoozed ? "Unsnooze" : "Snooze for today"}
-          >
-            <Moon className="w-4 h-4" />
-          </button>
-        )}
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onEdit(task)
-          }}
-          aria-label="Edit task"
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-tertiary hover:text-primary"
-        >
-          <Edit2 className="w-4 h-4" />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete(task.id)
-          }}
-          aria-label="Delete task"
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-tertiary hover:text-task-red"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      </div>
+      {/* Actions Dropdown Menu */}
+      <TaskActionsDropdown
+        task={task}
+        date={date}
+        isSnoozed={isSnoozed}
+        onSnooze={onSnooze}
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />
 
       {/* Completion Button (Right) */}
       <button

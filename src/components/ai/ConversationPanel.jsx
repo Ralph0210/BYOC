@@ -226,8 +226,8 @@ export function ConversationPanel({
         <div className="h-4" /> {/* Spacer for scroll */}
       </div>
 
-      {/* Footer Area */}
-      <div className="p-4 pb-6 bg-gradient-to-t from-white via-white/80 to-transparent dark:from-black dark:via-black/80 dark:to-transparent pt-10 sticky bottom-0 z-10 w-full backdrop-blur-[2px]">
+      {/* Footer Area - Transparent blur, minimal padding */}
+      <div className="px-3 py-3 bg-white/60 dark:bg-black/60 backdrop-blur-xl border-t border-black/5 dark:border-white/10 sticky bottom-0 z-10 w-full">
         {/* Context Pills */}
         {activeContexts.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2 px-1">

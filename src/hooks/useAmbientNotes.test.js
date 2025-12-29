@@ -18,7 +18,7 @@ describe("useReturnDetection", () => {
   it("sets last visit date in localStorage", () => {
     renderHook(() => useReturnDetection())
 
-    const stored = localStorage.getItem("path_last_visit")
+    const stored = localStorage.getItem("byoc_last_visit")
     expect(stored).toBeTruthy()
     expect(stored).toMatch(/^\d{4}-\d{2}-\d{2}$/) // YYYY-MM-DD format
   })
@@ -28,7 +28,7 @@ describe("useReturnDetection", () => {
     const fiveDaysAgo = new Date()
     fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5)
     localStorage.setItem(
-      "path_last_visit",
+      "byoc_last_visit",
       fiveDaysAgo.toISOString().split("T")[0]
     )
 
@@ -43,7 +43,7 @@ describe("useReturnDetection", () => {
     const yesterday = new Date()
     yesterday.setDate(yesterday.getDate() - 1)
     localStorage.setItem(
-      "path_last_visit",
+      "byoc_last_visit",
       yesterday.toISOString().split("T")[0]
     )
 
@@ -57,7 +57,7 @@ describe("useReturnDetection", () => {
     const fiveDaysAgo = new Date()
     fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5)
     localStorage.setItem(
-      "path_last_visit",
+      "byoc_last_visit",
       fiveDaysAgo.toISOString().split("T")[0]
     )
 

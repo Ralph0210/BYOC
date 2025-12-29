@@ -19,6 +19,7 @@ export function CalendarGrid({
   selectedDate,
   onDateClick,
   weeksToShow = 12,
+  minWeeks = 12, // Minimum weeks to show to fill container
 }) {
   const today = getToday()
 
@@ -31,12 +32,15 @@ export function CalendarGrid({
   const weeks = useMemo(() => {
     const weeks = []
 
+    // Calculate actual weeks needed - use max of provided weeksToShow and minWeeks
+    const actualWeeksToShow = Math.max(weeksToShow, minWeeks)
+
     // Start from the beginning of the week containing startDate
     let weekStart = startDate
       ? getStartOfWeek(parseDate(startDate))
-      : getStartOfWeek(addDays(getToday(), -7 * (weeksToShow - 1)))
+      : getStartOfWeek(addDays(getToday(), -7 * (actualWeeksToShow - 1)))
 
-    for (let w = 0; w < weeksToShow; w++) {
+    for (let w = 0; w < actualWeeksToShow; w++) {
       const week = []
       for (let d = 0; d < 7; d++) {
         const date = addDays(weekStart, d)
@@ -60,7 +64,7 @@ export function CalendarGrid({
     }
 
     return weeks
-  }, [startDate, endDate, weeksToShow, today])
+  }, [startDate, endDate, weeksToShow, minWeeks, today])
 
   // Calculate completions per date
   const completionsByDate = useMemo(() => {

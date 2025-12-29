@@ -1,11 +1,5 @@
 import { useState, useEffect } from "react"
-import {
-  Sparkles,
-  MessageCircle,
-  ChevronDown,
-  ChevronUp,
-  User,
-} from "lucide-react"
+import { Sparkles, MessageCircle, User } from "lucide-react"
 import { useAIConfig } from "../../hooks/useAIConfig"
 import { useAmbientNotes } from "../../hooks/useAmbientNotes"
 import { useAuth } from "../../hooks/useAuth"
@@ -23,10 +17,10 @@ export function CompanionInsightCard({
   tasks,
   completions,
   onChat,
+  embedded = false, // When true, renders without card wrapper (for dashboard integration)
 }) {
   const { config } = useAIConfig()
   const { user } = useAuth()
-  const [isExpanded, setIsExpanded] = useState(false)
   const today = getToday()
 
   // Check if inner_self personality
@@ -68,84 +62,89 @@ export function CompanionInsightCard({
 
   if (!config?.api_key) return null
 
-  return (
-    <Card
-      className="mb-4 bg-gradient-to-r from-primary/5 to-purple-500/5 border-primary/10"
-      padding="md"
-    >
-      <div className="flex items-start gap-3">
-        {/* Avatar */}
-        <div className="flex-shrink-0">
-          {displayPhoto ? (
-            <img
-              src={displayPhoto}
-              alt={displayName}
-              className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/20"
-            />
-          ) : isInnerSelf ? (
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white ring-2 ring-purple-500/20">
-              <User className="w-6 h-6" />
-            </div>
-          ) : (
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-purple-500 flex items-center justify-center text-white ring-2 ring-primary/20">
-              <Sparkles className="w-6 h-6" />
-            </div>
-          )}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-semibold text-primary">
-              {isInnerSelf ? `${displayName}'s Inner Voice` : displayName}
-            </span>
-          </div>
-          {note ? (
-            <p
-              className={cn(
-                "text-sm text-secondary leading-relaxed",
-                !isExpanded && "line-clamp-3"
-              )}
-            >
-              {note}
-            </p>
-          ) : loading ? (
-            <p className="text-sm text-tertiary italic animate-pulse">
-              Thinking...
-            </p>
-          ) : null}
-
-          {/* Actions */}
-          {note && (
-            <div className="flex items-center gap-2 mt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={MessageCircle}
-                onClick={handleChat}
-                className="text-xs"
-              >
-                Chat
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Expand/Collapse Button */}
-        {note && (
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1 rounded-lg hover:bg-white/20 dark:hover:bg-white/10 transition-colors flex-shrink-0"
-            aria-label={isExpanded ? "Collapse insight" : "Expand insight"}
-          >
-            {isExpanded ? (
-              <ChevronUp className="w-4 h-4 text-tertiary" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-tertiary" />
+  // Content for both embedded and standalone modes
+  const content = (
+    <div className="flex items-start gap-3">
+      {/* Avatar - AI Orb */}
+      <div className="flex-shrink-0">
+        {displayPhoto ? (
+          <img
+            src={displayPhoto}
+            alt={displayName}
+            className={cn(
+              "rounded-full object-cover",
+              embedded
+                ? "w-9 h-9 ring-2 ring-ai-primary/20"
+                : "w-11 h-11 ring-2 ring-ai-primary/30"
             )}
-          </button>
+          />
+        ) : isInnerSelf ? (
+          <div
+            className={cn(
+              "ai-orb flex items-center justify-center text-white",
+              embedded ? "w-9 h-9" : "w-11 h-11"
+            )}
+          >
+            <User className={embedded ? "w-4 h-4" : "w-5 h-5"} />
+          </div>
+        ) : (
+          <div
+            className={cn(
+              "ai-orb flex items-center justify-center text-white",
+              embedded ? "w-9 h-9" : "w-11 h-11"
+            )}
+          >
+            <Sparkles className={embedded ? "w-4 h-4" : "w-5 h-5"} />
+          </div>
         )}
       </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className={cn("font-semibold text-primary", "text-base")}>
+            {isInnerSelf ? `${displayName}'s Inner Voice` : displayName}
+          </span>
+        </div>
+
+        {/* Full message - no truncation */}
+        {note ? (
+          <p className={cn("text-secondary leading-relaxed", "text-sm")}>
+            {note}
+          </p>
+        ) : loading ? (
+          <p className={cn("text-tertiary italic animate-pulse", "text-sm")}>
+            Thinking...
+          </p>
+        ) : null}
+
+        {/* Actions - only in standalone mode */}
+        {!embedded && note && (
+          <div className="flex items-center gap-2 mt-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={MessageCircle}
+              onClick={handleChat}
+              className="text-xs"
+            >
+              Chat
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  // Embedded mode: return content without wrapper
+  if (embedded) {
+    return content
+  }
+
+  // Standalone mode: wrap in Card
+  return (
+    <Card className="mb-4 card-soft ai-glow" padding="md">
+      {content}
     </Card>
   )
 }

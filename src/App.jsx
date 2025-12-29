@@ -10,8 +10,15 @@ import {
   ChevronRight,
   Edit2,
   Trash2,
+  List,
+  Sparkles,
 } from "lucide-react"
 import { Header } from "./components/layout/Header"
+import {
+  Sidebar,
+  MobileHeader,
+  SidebarToggle,
+} from "./components/layout/Sidebar"
 import { Button } from "./components/ui/Button"
 import { Card } from "./components/ui/Card"
 import { Modal } from "./components/ui/Modal"
@@ -39,6 +46,7 @@ import {
   formatDate,
   cn,
 } from "./lib/utils"
+import { PrivacyPolicyPage } from "./components/landing/PrivacyPolicyPage"
 import { calculateChallengeStats } from "./lib/stats"
 import {
   AmbientNote,
@@ -46,7 +54,7 @@ import {
   EmptyStateNote,
 } from "./components/ai/AmbientNote"
 import { ConversationPanel } from "./components/ai/ConversationPanel"
-import { AIConfigForm } from "./components/ai/AIConfigForm"
+import { SettingsPanel } from "./components/settings/SettingsPanel"
 import {
   useReturnDetection,
   prefetchAmbientNote,
@@ -86,6 +94,10 @@ function App() {
   const today = getToday()
   const [expandedChallenges, setExpandedChallenges] = useState({})
   const [selectedDates, setSelectedDates] = useState({}) // Per-challenge date selection
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [selectedChallengeId, setSelectedChallengeId] = useState(null)
+  const [showPrivacy, setShowPrivacy] = useState(false)
 
   // Modals
   const [showChallengeModal, setShowChallengeModal] = useState(false)
@@ -141,6 +153,16 @@ function App() {
   useEffect(() => {
     fetchChallenges()
   }, [fetchChallenges])
+
+  // Auto-select first challenge if none selected
+  useEffect(() => {
+    if (!selectedChallengeId && challenges.length > 0) {
+      const activeChallenges = challenges.filter((c) => !c.is_archived)
+      if (activeChallenges.length > 0) {
+        setSelectedChallengeId(activeChallenges[0].id)
+      }
+    }
+  }, [challenges, selectedChallengeId])
 
   // Fetch all tasks and completions when challenges load
   useEffect(() => {
@@ -376,6 +398,237 @@ function App() {
     setShowTaskModal(true)
   }
 
+  // Render single challenge detail view (for sidebar layout)
+  const renderChallengeDetail = (challenge) => {
+    const challengeTasks = tasks.filter((t) => t.challenge_id === challenge.id)
+    const stats = getCompletionStats(challenge, challengeTasks)
+    const daysRemaining =
+      challenge.end_date >= today ? daysDiff(today, challenge.end_date) + 1 : 0
+
+    // Today's Progress
+    let todayTarget = 0
+    let todayDone = 0
+    challengeTasks.forEach((task) => {
+      if (isTaskActiveOnDate(task, today)) {
+        todayTarget += task.frequency_count || 1
+        const taskCompletions = completions.filter(
+          (c) => c.task_id === task.id && c.date === today
+        ).length
+        todayDone += Math.min(taskCompletions, task.frequency_count || 1)
+      }
+    })
+
+    return (
+      <div className="dashboard-grid">
+        {/* Dashboard Header */}
+        <div className="dashboard-header">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-xl font-bold text-primary truncate">
+                {challenge.name}
+              </h1>
+              {challenge.reward_text && (
+                <Gift className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-secondary">
+              <span>
+                {formatDisplayDate(challenge.start_date)} →{" "}
+                {formatDisplayDate(challenge.end_date)}
+              </span>
+              {daysRemaining > 0 && (
+                <span
+                  className={cn(
+                    daysRemaining <= 3 && "text-orange-500 font-medium"
+                  )}
+                >
+                  {daysRemaining} day{daysRemaining !== 1 ? "s" : ""} left
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Progress Stats - Clean skeuomorphic design */}
+          <div className="flex items-center gap-4 ml-4">
+            <div className="stat-box text-center">
+              <div className="text-xl font-bold text-indigo-600 dark:text-indigo-300">
+                {stats.overall}%
+              </div>
+              <div className="text-xs text-indigo-500/80 dark:text-indigo-400/80 font-medium">
+                progress
+              </div>
+            </div>
+            <div className="flex gap-1">
+              <button
+                onClick={() => handleEditChallenge(challenge)}
+                className="p-2 rounded-lg hover:bg-surface-hover transition-colors"
+                aria-label="Edit challenge"
+              >
+                <Edit2 className="w-4 h-4 text-tertiary hover:text-primary" />
+              </button>
+              <button
+                onClick={() => handleDeleteChallenge(challenge.id)}
+                className="p-2 rounded-lg hover:bg-surface-hover transition-colors"
+                aria-label="Delete challenge"
+              >
+                <Trash2 className="w-4 h-4 text-tertiary hover:text-red-500" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Left Column: AI Insights + Heatmap */}
+        <div className="dashboard-left">
+          {/* AI Insights Card - with AI glow styling */}
+          {isCompanionEnabled && (
+            <div
+              className="dashboard-card dashboard-card-ai p-5 cursor-pointer hover:scale-[1.01] transition-all duration-200"
+              onClick={() => handleOpenChat(challenge)}
+            >
+              <CompanionInsightCard
+                challenge={challenge}
+                tasks={challengeTasks}
+                completions={completions}
+                onChat={() => handleOpenChat(challenge)}
+                embedded
+              />
+            </div>
+          )}
+
+          {/* Heatmap Card */}
+          <div className="dashboard-card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="dashboard-card-icon">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <h3 className="text-sm font-semibold text-primary">Progress</h3>
+            </div>
+            <CalendarGrid
+              tasks={challengeTasks}
+              completions={completions}
+              snoozes={snoozes}
+              startDate={challenge.start_date}
+              endDate={challenge.end_date}
+              selectedDate={selectedDates[challenge.id] || today}
+              onDateClick={(date) => {
+                if (date <= today) {
+                  setSelectedDates((prev) => ({
+                    ...prev,
+                    [challenge.id]: date,
+                  }))
+                }
+              }}
+              weeksToShow={
+                Math.ceil(
+                  daysDiff(challenge.start_date, challenge.end_date) / 7
+                ) + 1
+              }
+              minWeeks={20}
+            />
+          </div>
+        </div>
+
+        {/* Right Column: Tasks + Reward */}
+        <div className="dashboard-right">
+          {/* Tasks Card */}
+          <div className="dashboard-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="dashboard-card-icon">
+                  <List className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-semibold text-primary">Tasks</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                {todayTarget > 0 && (
+                  <span className="done-badge">{todayDone} done</span>
+                )}
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  icon={Plus}
+                  onClick={() => handleAddTask(challenge)}
+                >
+                  Add
+                </Button>
+              </div>
+            </div>
+
+            {/* Task List */}
+            {(() => {
+              const selectedDate = selectedDates[challenge.id] || today
+              const dateTasks = challengeTasks.filter((t) =>
+                isTaskActiveOnDate(t, selectedDate)
+              )
+              const isFutureDate = selectedDate > today
+
+              return dateTasks.length > 0 ? (
+                <div className="space-y-2">
+                  {dateTasks.map((task) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      completionCount={getCompletionCountForTask(
+                        task.id,
+                        selectedDate
+                      )}
+                      onComplete={handleCompleteTask}
+                      onUncomplete={handleUncompleteTask}
+                      onEdit={handleEditTask}
+                      onDelete={handleDeleteTask}
+                      onSnooze={handleSnoozeTask}
+                      isSnoozed={isTaskSnoozed(task.id, selectedDate)}
+                      date={selectedDate}
+                      disabled={isFutureDate}
+                      compact
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <EmptyStateNote />
+                  <p className="text-sm text-tertiary mt-2">
+                    No tasks for today
+                  </p>
+                </div>
+              )
+            })()}
+          </div>
+
+          {/* Reward Card */}
+          {challenge.reward_text && (
+            <div className="dashboard-card p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center"
+                  style={{
+                    background:
+                      "linear-gradient(145deg, rgba(234, 179, 8, 0.2), rgba(234, 179, 8, 0.1))",
+                  }}
+                >
+                  <Gift className="w-4 h-4 text-yellow-500" />
+                </div>
+                <h3 className="text-sm font-semibold text-primary">Reward</h3>
+              </div>
+              <p className="text-sm text-secondary">{challenge.reward_text}</p>
+              {challenge.reward_link && (
+                <a
+                  href={challenge.reward_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1 text-xs text-accent hover:underline"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  View reward
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   // Render expanded challenge content
   const renderChallengeContent = (challenge) => {
     const challengeTasks = tasks.filter((t) => t.challenge_id === challenge.id)
@@ -476,12 +729,12 @@ function App() {
             endDate={challenge.end_date}
             selectedDate={selectedDate}
             onDateClick={handleDateClick}
-            weeksToShow={Math.min(
+            weeksToShow={
               Math.ceil(
                 daysDiff(challenge.start_date, challenge.end_date) / 7
-              ) + 1,
-              8
-            )}
+              ) + 1
+            }
+            minWeeks={20}
           />
         </div>
 
@@ -740,42 +993,144 @@ function App() {
             </Button>
           </Card>
         )}
+
+        {/* Inline New Challenge Card - Soft Focus design */}
+        {challenges.filter((c) => !c.is_archived).length > 0 && (
+          <button
+            onClick={() => setShowChallengeModal(true)}
+            className="invite-card w-full"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="text-sm font-medium">Start a new challenge</span>
+          </button>
+        )}
       </div>
     )
   }
 
-  // Show landing page for new visitors
-  if (!hasStarted && !isAuthenticated) {
+  // Show landing page for new visitors (unless viewing privacy)
+  if (!isAuthenticated && !hasStarted && !showPrivacy) {
     return (
       <LandingPage
         onGetStarted={handleGetStarted}
         onSignIn={signInWithGoogle}
         loading={authLoading}
+        onViewPrivacy={() => setShowPrivacy(true)}
       />
     )
   }
 
+  // Show privacy policy page
+  if (showPrivacy) {
+    return <PrivacyPolicyPage onBack={() => setShowPrivacy(false)} />
+  }
+
+  // Get active challenges for sidebar
+  const activeChallenges = challenges.filter((c) => !c.is_archived)
+
+  // Get currently selected challenge
+  const selectedChallenge = activeChallenges.find(
+    (c) => c.id === selectedChallengeId
+  )
+
   return (
-    <div className="min-h-screen bg-app">
-      <Header
-        title="BYOC"
-        subtitle={formatDisplayDate(today)}
-        onOpenAISettings={() => setShowAISettings(true)}
-        onSignOut={handleSignOut}
+    <div className="app-layout bg-app">
+      {/* Sidebar */}
+      <Sidebar
+        challenges={activeChallenges}
+        tasks={tasks}
+        completions={completions}
+        selectedChallengeId={selectedChallengeId}
+        onSelectChallenge={setSelectedChallengeId}
+        onNewChallenge={() => setShowChallengeModal(true)}
+        onOpenSettings={() => setShowAISettings(true)}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
 
-      <main className="max-w-3xl mx-auto px-4 pb-24 pt-6 md:pb-6">
-        {renderHome()}
-      </main>
+      {/* Sidebar Toggle (shows when sidebar is hidden) */}
+      <SidebarToggle
+        onClick={() => setSidebarCollapsed(false)}
+        isVisible={sidebarCollapsed}
+      />
 
-      {/* Floating action button - Safe area aware */}
-      <button
-        onClick={() => setShowChallengeModal(true)}
-        aria-label="Create new challenge"
-        className="fixed bottom-6 right-6 md:bottom-8 md:right-8 w-14 h-14 rounded-full bg-primary-500 text-white shadow-lg shadow-primary-500/30 hover:bg-primary-600 active:scale-95 transition-all flex items-center justify-center z-30"
+      {/* Main Content */}
+      <div
+        className={cn("main-content", sidebarCollapsed && "sidebar-collapsed")}
       >
-        <Plus className="w-7 h-7" />
-      </button>
+        {/* Mobile Header */}
+        <MobileHeader
+          onMenuClick={() => setSidebarOpen(true)}
+          title={selectedChallenge?.name || "BYOC"}
+        />
+
+        {/* Main Content Area */}
+        <main className="main-content-inner">
+          {/* Return After Absence Note */}
+          {isReturning && (
+            <ReturnNote daysAway={daysAway} onDismiss={dismissReturn} />
+          )}
+
+          {selectedChallenge ? (
+            <>
+              {/* Challenge Detail Dashboard */}
+              {renderChallengeDetail(selectedChallenge)}
+            </>
+          ) : activeChallenges.length === 0 ? (
+            <Card padding="lg" className="text-center">
+              <div className="py-8">
+                <h2 className="text-h2 mb-2">Welcome to BYOC</h2>
+                <p className="text-secondary mb-6">
+                  Create your first challenge to get started
+                </p>
+                <Button onClick={() => setShowChallengeModal(true)}>
+                  Create Your First Challenge
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <div className="text-center py-12 text-tertiary">
+              Select a challenge from the sidebar
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* AI Chat FAB - Floating Action Button */}
+      {isCompanionEnabled && selectedChallenge && (
+        <button
+          onClick={() => handleOpenChat(selectedChallenge)}
+          className="fixed bottom-6 right-6 z-40 rounded-full shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-xl overflow-hidden"
+          style={{
+            background:
+              "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)",
+            boxShadow:
+              "0 4px 14px rgba(99, 102, 241, 0.4), 0 2px 6px rgba(0, 0, 0, 0.1)",
+          }}
+          aria-label="Open AI Chat"
+          title="Chat with AI Companion"
+        >
+          {config?.companion_photo_url ? (
+            <img
+              src={config.companion_photo_url}
+              alt={config?.companion_name || "AI Companion"}
+              className="w-14 h-14 object-cover ring-2 ring-indigo-500"
+            />
+          ) : (
+            <div
+              className="w-14 h-14 flex items-center justify-center"
+              style={{
+                background:
+                  "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)",
+              }}
+            >
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+          )}
+        </button>
+      )}
 
       {/* Challenge Modal */}
       <Modal
@@ -869,14 +1224,14 @@ function App() {
         variant="danger"
       />
 
-      {/* AI Settings Modal */}
+      {/* Settings Modal */}
       <Modal
         isOpen={showAISettings}
         onClose={() => setShowAISettings(false)}
-        title="AI Settings"
+        title="Settings"
         size="lg"
       >
-        <AIConfigForm />
+        <SettingsPanel onClose={() => setShowAISettings(false)} />
       </Modal>
 
       {/* Chat Panel */}

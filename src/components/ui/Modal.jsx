@@ -2,6 +2,12 @@ import { useEffect, useCallback } from "react"
 import { X } from "lucide-react"
 import { cn } from "../../lib/utils"
 
+/**
+ * BYOC Modal Component
+ * Accessible modal with design system tokens
+ * - Mobile: slides up from bottom with rounded top
+ * - Desktop: centered with full rounding
+ */
 export function Modal({
   isOpen,
   onClose,
@@ -47,23 +53,29 @@ export function Modal({
         onClick={onClose}
       />
 
-      {/* Modal content */}
+      {/* Modal content - Skeuomorphic paper card */}
       <div
         className={cn(
-          "relative w-full bg-white dark:bg-surface-dark rounded-t-3xl sm:rounded-2xl shadow-modal",
+          "relative w-full rounded-t-[var(--radius-xl)] sm:rounded-[var(--radius-lg)]",
+          "bg-[#ffffff] dark:bg-[#1f1f23]",
           "animate-slide-up sm:animate-scale-in",
           "max-h-[90vh] overflow-hidden flex flex-col",
+          "border border-gray-100 dark:border-gray-700",
+          "modal-content",
           sizes[size]
         )}
       >
         {/* Header */}
         {(title || showClose) && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-app">
-            <h2 className="text-lg font-semibold text-primary">{title}</h2>
+          <div
+            className="flex items-center justify-between px-6 py-4 border-b"
+            style={{ borderColor: "var(--color-border)" }}
+          >
+            <h2 className="text-h2 text-primary">{title}</h2>
             {showClose && (
               <button
                 onClick={onClose}
-                className="p-2 -mr-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className="p-2 -mr-2 rounded-[var(--radius-md)] hover:bg-surface-hover transition-colors"
               >
                 <X className="h-5 w-5 text-tertiary" />
               </button>

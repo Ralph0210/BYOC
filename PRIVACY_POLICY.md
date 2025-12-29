@@ -20,7 +20,15 @@ When you sign in with Google, we receive basic profile information to create you
 
 _We use **Supabase Authentication** to handle this securely. We never see or store your Google password._
 
-### B. App Content
+### B. User-Provided API Keys
+
+If you choose to use the AI features, you may look to provide your own API key (OpenAI, Anthropic, or Gemini).
+
+- **Encryption**: Your API key is **encrypted** before it is saved to our database.
+- **Security**: We use industry-standard encryption algorithms (AES-256) to ensure your key is unreadable to anyone else, including our administrators.
+- **Your Control**: You can delete or update your stored key at any time from the settings menu.
+
+### C. App Content
 
 To provide the habit-tracking service, we store the data you create:
 
