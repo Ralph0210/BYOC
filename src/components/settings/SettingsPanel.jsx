@@ -1,4 +1,13 @@
-import { Sun, Moon, LogOut, Sparkles, ChevronRight, User } from "lucide-react"
+import {
+  Sun,
+  Moon,
+  LogOut,
+  Sparkles,
+  ChevronRight,
+  User,
+  Trash2,
+} from "lucide-react"
+import { supabase } from "../../lib/supabase"
 import { useTheme } from "../../hooks/useTheme"
 import { useAuth } from "../../hooks/useAuth"
 import { useAIConfig } from "../../hooks/useAIConfig"
@@ -212,6 +221,33 @@ export function SettingsPanel({ onClose }) {
           iconColor="text-red-500"
           title="Sign Out"
           onClick={handleSignOut}
+          danger
+        />
+
+        <SettingsRow
+          icon={Trash2}
+          iconBg="bg-red-500/10"
+          iconColor="text-red-500"
+          title="Delete Account"
+          subtitle="Permanently remove all data"
+          onClick={async () => {
+            if (
+              window.confirm(
+                "Are you absolutely sure? This will permanently delete your account and all associated data (Challenges, Tasks, History). This action cannot be undone."
+              )
+            ) {
+              try {
+                const { error } = await supabase.rpc("delete_user_account")
+                if (error) throw error
+                window.location.reload()
+              } catch (err) {
+                console.error("Delete account error:", err)
+                alert(
+                  "Failed to delete account. Please ensure the SQL function exists."
+                )
+              }
+            }
+          }}
           danger
         />
       </div>
