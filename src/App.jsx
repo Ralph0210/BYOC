@@ -10,6 +10,8 @@ import {
   ChevronRight,
   Edit2,
   Trash2,
+  List,
+  Sparkles,
 } from "lucide-react"
 import { Header } from "./components/layout/Header"
 import {
@@ -415,12 +417,12 @@ function App() {
     })
 
     return (
-      <Card padding="lg" className="overflow-hidden">
-        {/* Challenge Header */}
-        <div className="flex items-start justify-between mb-6">
+      <div className="dashboard-grid">
+        {/* Dashboard Header */}
+        <div className="dashboard-header">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-h1 text-primary truncate">
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-xl font-bold text-primary truncate">
                 {challenge.name}
               </h1>
               {challenge.reward_text && (
@@ -441,29 +443,19 @@ function App() {
                   {daysRemaining} day{daysRemaining !== 1 ? "s" : ""} left
                 </span>
               )}
-              <span>
-                {challengeTasks.length} task
-                {challengeTasks.length !== 1 ? "s" : ""}
-              </span>
             </div>
           </div>
 
-          {/* Stats & Actions */}
+          {/* Progress Stats - Clean skeuomorphic design */}
           <div className="flex items-center gap-4 ml-4">
-            {/* Progress */}
-            <div className="text-right">
-              <div className="text-3xl font-bold text-primary">
+            <div className="stat-box text-center">
+              <div className="text-xl font-bold text-indigo-600 dark:text-indigo-300">
                 {stats.overall}%
               </div>
-              <div className="text-xs text-tertiary">progress</div>
-              {todayTarget > 0 && (
-                <div className="text-xs font-medium text-secondary mt-1">
-                  Today: {todayDone}/{todayTarget}
-                </div>
-              )}
+              <div className="text-xs text-indigo-500/80 dark:text-indigo-400/80 font-medium">
+                progress
+              </div>
             </div>
-
-            {/* Edit/Delete */}
             <div className="flex gap-1">
               <button
                 onClick={() => handleEditChallenge(challenge)}
@@ -483,21 +475,155 @@ function App() {
           </div>
         </div>
 
-        {/* Ambient Note */}
-        <div
-          onClick={() => handleOpenChat(challenge)}
-          className="cursor-pointer hover:opacity-80 transition-opacity mb-4"
-        >
-          <AmbientNote
-            challenge={challenge}
-            tasks={challengeTasks}
-            completions={completions}
-          />
+        {/* Left Column: AI Insights + Heatmap */}
+        <div className="dashboard-left">
+          {/* AI Insights Card - with AI glow styling */}
+          {isCompanionEnabled && (
+            <div
+              className="dashboard-card dashboard-card-ai p-5 cursor-pointer hover:scale-[1.01] transition-all duration-200"
+              onClick={() => handleOpenChat(challenge)}
+            >
+              <CompanionInsightCard
+                challenge={challenge}
+                tasks={challengeTasks}
+                completions={completions}
+                onChat={() => handleOpenChat(challenge)}
+                embedded
+              />
+            </div>
+          )}
+
+          {/* Heatmap Card */}
+          <div className="dashboard-card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="dashboard-card-icon">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <h3 className="text-sm font-semibold text-primary">Progress</h3>
+            </div>
+            <CalendarGrid
+              tasks={challengeTasks}
+              completions={completions}
+              snoozes={snoozes}
+              startDate={challenge.start_date}
+              endDate={challenge.end_date}
+              selectedDate={selectedDates[challenge.id] || today}
+              onDateClick={(date) => {
+                if (date <= today) {
+                  setSelectedDates((prev) => ({
+                    ...prev,
+                    [challenge.id]: date,
+                  }))
+                }
+              }}
+              weeksToShow={
+                Math.ceil(
+                  daysDiff(challenge.start_date, challenge.end_date) / 7
+                ) + 1
+              }
+              minWeeks={20}
+            />
+          </div>
         </div>
 
-        {/* Challenge Content (Calendar, Tasks, etc.) */}
-        {renderChallengeContent(challenge)}
-      </Card>
+        {/* Right Column: Tasks + Reward */}
+        <div className="dashboard-right">
+          {/* Tasks Card */}
+          <div className="dashboard-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="dashboard-card-icon">
+                  <List className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-semibold text-primary">Tasks</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                {todayTarget > 0 && (
+                  <span className="done-badge">{todayDone} done</span>
+                )}
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  icon={Plus}
+                  onClick={() => handleAddTask(challenge)}
+                >
+                  Add
+                </Button>
+              </div>
+            </div>
+
+            {/* Task List */}
+            {(() => {
+              const selectedDate = selectedDates[challenge.id] || today
+              const dateTasks = challengeTasks.filter((t) =>
+                isTaskActiveOnDate(t, selectedDate)
+              )
+              const isFutureDate = selectedDate > today
+
+              return dateTasks.length > 0 ? (
+                <div className="space-y-2">
+                  {dateTasks.map((task) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      completionCount={getCompletionCountForTask(
+                        task.id,
+                        selectedDate
+                      )}
+                      onComplete={handleCompleteTask}
+                      onUncomplete={handleUncompleteTask}
+                      onEdit={handleEditTask}
+                      onDelete={handleDeleteTask}
+                      onSnooze={handleSnoozeTask}
+                      isSnoozed={isTaskSnoozed(task.id, selectedDate)}
+                      date={selectedDate}
+                      disabled={isFutureDate}
+                      compact
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <EmptyStateNote />
+                  <p className="text-sm text-tertiary mt-2">
+                    No tasks for today
+                  </p>
+                </div>
+              )
+            })()}
+          </div>
+
+          {/* Reward Card */}
+          {challenge.reward_text && (
+            <div className="dashboard-card p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center"
+                  style={{
+                    background:
+                      "linear-gradient(145deg, rgba(234, 179, 8, 0.2), rgba(234, 179, 8, 0.1))",
+                  }}
+                >
+                  <Gift className="w-4 h-4 text-yellow-500" />
+                </div>
+                <h3 className="text-sm font-semibold text-primary">Reward</h3>
+              </div>
+              <p className="text-sm text-secondary">{challenge.reward_text}</p>
+              {challenge.reward_link && (
+                <a
+                  href={challenge.reward_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1 text-xs text-accent hover:underline"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  View reward
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     )
   }
 
@@ -601,12 +727,12 @@ function App() {
             endDate={challenge.end_date}
             selectedDate={selectedDate}
             onDateClick={handleDateClick}
-            weeksToShow={Math.min(
+            weeksToShow={
               Math.ceil(
                 daysDiff(challenge.start_date, challenge.end_date) / 7
-              ) + 1,
-              8
-            )}
+              ) + 1
+            }
+            minWeeks={20}
           />
         </div>
 
@@ -940,22 +1066,10 @@ function App() {
           )}
 
           {selectedChallenge ? (
-            <div className="space-y-6">
-              {/* Companion Insight Card */}
-              {isCompanionEnabled && (
-                <CompanionInsightCard
-                  challenge={selectedChallenge}
-                  tasks={tasks.filter(
-                    (t) => t.challenge_id === selectedChallenge.id
-                  )}
-                  completions={completions}
-                  onChat={() => handleOpenChat(selectedChallenge)}
-                />
-              )}
-
-              {/* Challenge Detail */}
+            <>
+              {/* Challenge Detail Dashboard */}
               {renderChallengeDetail(selectedChallenge)}
-            </div>
+            </>
           ) : activeChallenges.length === 0 ? (
             <Card padding="lg" className="text-center">
               <div className="py-8">
@@ -976,7 +1090,37 @@ function App() {
         </main>
       </div>
 
-      {/* FAB removed - replaced with sidebar button */}
+      {/* AI Chat FAB - Floating Action Button */}
+      {isCompanionEnabled && selectedChallenge && (
+        <button
+          onClick={() => handleOpenChat(selectedChallenge)}
+          className="fixed bottom-6 right-6 z-40 rounded-full shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-xl overflow-hidden"
+          style={{
+            boxShadow:
+              "0 4px 14px rgba(99, 102, 241, 0.4), 0 2px 6px rgba(0, 0, 0, 0.1)",
+          }}
+          aria-label="Open AI Chat"
+          title="Chat with AI Companion"
+        >
+          {config?.companion_photo_url ? (
+            <img
+              src={config.companion_photo_url}
+              alt={config?.companion_name || "AI Companion"}
+              className="w-14 h-14 object-cover ring-2 ring-indigo-500"
+            />
+          ) : (
+            <div
+              className="w-14 h-14 flex items-center justify-center"
+              style={{
+                background:
+                  "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)",
+              }}
+            >
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+          )}
+        </button>
+      )}
 
       {/* Challenge Modal */}
       <Modal

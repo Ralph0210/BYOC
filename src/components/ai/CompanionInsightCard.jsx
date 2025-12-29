@@ -17,6 +17,7 @@ export function CompanionInsightCard({
   tasks,
   completions,
   onChat,
+  embedded = false, // When true, renders without card wrapper (for dashboard integration)
 }) {
   const { config } = useAIConfig()
   const { user } = useAuth()
@@ -61,61 +62,89 @@ export function CompanionInsightCard({
 
   if (!config?.api_key) return null
 
+  // Content for both embedded and standalone modes
+  const content = (
+    <div className="flex items-start gap-3">
+      {/* Avatar - AI Orb */}
+      <div className="flex-shrink-0">
+        {displayPhoto ? (
+          <img
+            src={displayPhoto}
+            alt={displayName}
+            className={cn(
+              "rounded-full object-cover",
+              embedded
+                ? "w-9 h-9 ring-2 ring-ai-primary/20"
+                : "w-11 h-11 ring-2 ring-ai-primary/30"
+            )}
+          />
+        ) : isInnerSelf ? (
+          <div
+            className={cn(
+              "ai-orb flex items-center justify-center text-white",
+              embedded ? "w-9 h-9" : "w-11 h-11"
+            )}
+          >
+            <User className={embedded ? "w-4 h-4" : "w-5 h-5"} />
+          </div>
+        ) : (
+          <div
+            className={cn(
+              "ai-orb flex items-center justify-center text-white",
+              embedded ? "w-9 h-9" : "w-11 h-11"
+            )}
+          >
+            <Sparkles className={embedded ? "w-4 h-4" : "w-5 h-5"} />
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className={cn("font-semibold text-primary", "text-base")}>
+            {isInnerSelf ? `${displayName}'s Inner Voice` : displayName}
+          </span>
+        </div>
+
+        {/* Full message - no truncation */}
+        {note ? (
+          <p className={cn("text-secondary leading-relaxed", "text-sm")}>
+            {note}
+          </p>
+        ) : loading ? (
+          <p className={cn("text-tertiary italic animate-pulse", "text-sm")}>
+            Thinking...
+          </p>
+        ) : null}
+
+        {/* Actions - only in standalone mode */}
+        {!embedded && note && (
+          <div className="flex items-center gap-2 mt-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={MessageCircle}
+              onClick={handleChat}
+              className="text-xs"
+            >
+              Chat
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  // Embedded mode: return content without wrapper
+  if (embedded) {
+    return content
+  }
+
+  // Standalone mode: wrap in Card
   return (
     <Card className="mb-4 card-soft ai-glow" padding="md">
-      <div className="flex items-start gap-4">
-        {/* Avatar - AI Orb */}
-        <div className="flex-shrink-0">
-          {displayPhoto ? (
-            <img
-              src={displayPhoto}
-              alt={displayName}
-              className="w-11 h-11 rounded-full object-cover ring-2 ring-ai-primary/30"
-            />
-          ) : isInnerSelf ? (
-            <div className="w-11 h-11 ai-orb flex items-center justify-center text-white">
-              <User className="w-5 h-5" />
-            </div>
-          ) : (
-            <div className="w-11 h-11 ai-orb flex items-center justify-center text-white">
-              <Sparkles className="w-5 h-5" />
-            </div>
-          )}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-semibold text-primary">
-              {isInnerSelf ? `${displayName}'s Inner Voice` : displayName}
-            </span>
-          </div>
-
-          {/* Full message - no truncation */}
-          {note ? (
-            <p className="text-sm text-secondary leading-relaxed">{note}</p>
-          ) : loading ? (
-            <p className="text-sm text-tertiary italic animate-pulse">
-              Thinking...
-            </p>
-          ) : null}
-
-          {/* Actions */}
-          {note && (
-            <div className="flex items-center gap-2 mt-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={MessageCircle}
-                onClick={handleChat}
-                className="text-xs"
-              >
-                Chat
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
+      {content}
     </Card>
   )
 }

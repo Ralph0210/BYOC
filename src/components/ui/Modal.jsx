@@ -53,15 +53,28 @@ export function Modal({
         onClick={onClose}
       />
 
-      {/* Modal content */}
+      {/* Modal content - Skeuomorphic paper card */}
       <div
         className={cn(
-          "relative w-full bg-surface rounded-t-[var(--radius-xl)] sm:rounded-[var(--radius-lg)]",
-          "shadow-xl dark:shadow-2xl",
+          "relative w-full rounded-t-[var(--radius-xl)] sm:rounded-[var(--radius-lg)]",
+          "bg-[#ffffff] dark:bg-[#1f1f23]",
           "animate-slide-up sm:animate-scale-in",
           "max-h-[90vh] overflow-hidden flex flex-col",
+          "border border-gray-100 dark:border-gray-700",
           sizes[size]
         )}
+        style={{
+          boxShadow: `
+            0 0 0 1px rgba(0,0,0,0.03),
+            0 1px 2px rgba(0,0,0,0.04),
+            0 4px 8px rgba(0,0,0,0.04),
+            0 8px 16px rgba(0,0,0,0.06),
+            0 16px 32px rgba(0,0,0,0.08),
+            0 32px 64px rgba(0,0,0,0.10),
+            inset 0 1px 0 rgba(255,255,255,0.9),
+            inset 0 -1px 0 rgba(0,0,0,0.02)
+          `,
+        }}
       >
         {/* Header */}
         {(title || showClose) && (

@@ -108,12 +108,16 @@ export function Sidebar({
             </div>
           </div>
 
-          {isAIConfigured && (
-            <div className="mt-3 flex items-center gap-2 text-xs text-ai-primary">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Companion Active</span>
-            </div>
-          )}
+          {/* Today's Date */}
+          <div className="mt-3 flex items-center gap-2 text-xs text-secondary font-medium">
+            <span>
+              {new Date().toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+          </div>
         </div>
 
         {/* Content - Challenge List */}
@@ -145,18 +149,12 @@ export function Sidebar({
                       onClose?.()
                     }}
                     className={cn(
-                      "w-full flex items-center gap-3 p-3 rounded-xl transition-all",
-                      "hover:bg-surface-hover",
-                      isActive && "bg-accent-soft"
+                      "sidebar-challenge-card w-full flex items-center gap-3 p-3",
+                      isActive && "active"
                     )}
-                    style={
-                      isActive
-                        ? { border: "1px solid rgba(99, 102, 241, 0.2)" }
-                        : undefined
-                    }
                   >
-                    {/* Progress Ring */}
-                    <div className="relative w-10 h-10 flex-shrink-0">
+                    {/* Progress Ring - 3D Skeuomorphic */}
+                    <div className="progress-ring-3d relative w-10 h-10 flex-shrink-0">
                       <svg className="w-10 h-10 -rotate-90" viewBox="0 0 40 40">
                         <circle
                           cx="20"
@@ -246,14 +244,7 @@ export function Sidebar({
                 onNewChallenge()
                 onClose?.()
               }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed text-secondary hover:text-accent hover:bg-accent-soft transition-all text-sm font-medium"
-              style={{ borderColor: "var(--color-border)" }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.borderColor = "var(--color-accent)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.borderColor = "var(--color-border)")
-              }
+              className="new-challenge-btn w-full flex items-center justify-center gap-2 py-3 rounded-xl text-secondary hover:text-accent transition-all text-sm font-medium"
             >
               <Plus className="w-4 h-4" />
               New Challenge
