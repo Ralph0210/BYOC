@@ -11,7 +11,12 @@ import {
 } from "lucide-react"
 import { Button } from "../ui/Button"
 
-export function LandingPage({ onGetStarted, onSignIn, loading }) {
+export function LandingPage({
+  onGetStarted,
+  onSignIn,
+  loading,
+  onViewPrivacy,
+}) {
   // Pre-generated heatmap data for consistency
   const heatmapData = [
     1, 1, 0.8, 1, 0.6, 0, 0.9, 1, 1, 0.7, 1, 0.5, 1, 1, 0.8, 1, 1, 0.9, 0, 0.4,
@@ -302,9 +307,12 @@ export function LandingPage({ onGetStarted, onSignIn, loading }) {
             © 2025 BYOC. Built for people who own their tools.
           </p>
           <div className="flex gap-5 text-xs text-tertiary">
-            <a href="#" className="hover:text-primary transition-colors">
+            <button
+              onClick={onViewPrivacy}
+              className="hover:text-primary transition-colors cursor-pointer"
+            >
               Privacy
-            </a>
+            </button>
             <a href="#" className="hover:text-primary transition-colors">
               Open Source
             </a>

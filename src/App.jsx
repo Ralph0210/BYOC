@@ -46,6 +46,7 @@ import {
   formatDate,
   cn,
 } from "./lib/utils"
+import { PrivacyPolicyPage } from "./components/landing/PrivacyPolicyPage"
 import { calculateChallengeStats } from "./lib/stats"
 import {
   AmbientNote,
@@ -96,6 +97,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [selectedChallengeId, setSelectedChallengeId] = useState(null)
+  const [showPrivacy, setShowPrivacy] = useState(false)
 
   // Modals
   const [showChallengeModal, setShowChallengeModal] = useState(false)
@@ -1006,15 +1008,21 @@ function App() {
     )
   }
 
-  // Show landing page for new visitors
-  if (!hasStarted && !isAuthenticated) {
+  // Show landing page for new visitors (unless viewing privacy)
+  if (!isAuthenticated && !hasStarted && !showPrivacy) {
     return (
       <LandingPage
         onGetStarted={handleGetStarted}
         onSignIn={signInWithGoogle}
         loading={authLoading}
+        onViewPrivacy={() => setShowPrivacy(true)}
       />
     )
+  }
+
+  // Show privacy policy page
+  if (showPrivacy) {
+    return <PrivacyPolicyPage onBack={() => setShowPrivacy(false)} />
   }
 
   // Get active challenges for sidebar
