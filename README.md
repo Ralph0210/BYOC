@@ -4,7 +4,7 @@
 
 BYOC is a modern, challenge-based habit tracker designed to help you build consistency through defined sprints rather than endless lists. It visualizes your progress with a GitHub-style contribution graph and premium insights.
 
-![App Preview](public/preview.png)
+![App Preview](public/app-screenshot.png)
 _(Drop a screenshot of your app here)_
 
 ---
