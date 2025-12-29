@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react"
 import { supabase } from "../lib/supabase"
+import { encryptData, decryptData } from "../lib/crypto"
 
 export function useChallenges() {
   const [challenges, setChallenges] = useState([])
@@ -23,8 +24,30 @@ export function useChallenges() {
       const { data, error: fetchError } = await query
 
       if (fetchError) throw fetchError
-      setChallenges(data || [])
-      return data
+
+      // Decrypt sensitive fields
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      const decryptedChallenges = await Promise.all(
+        (data || []).map(async (challenge) => {
+          if (!user) return challenge
+          return {
+            ...challenge,
+            name:
+              (await decryptData(challenge.name, user.id)) || challenge.name,
+            description:
+              (await decryptData(challenge.description, user.id)) ||
+              challenge.description,
+            reward_text:
+              (await decryptData(challenge.reward_text, user.id)) ||
+              challenge.reward_text,
+          }
+        })
+      )
+
+      setChallenges(decryptedChallenges)
+      return decryptedChallenges
     } catch (err) {
       setError(err.message)
       return []
@@ -46,9 +69,22 @@ export function useChallenges() {
         throw new Error("You must be logged in to create a challenge")
       }
 
+      // Encrypt sensitive fields
+      const encryptedData = {
+        ...challengeData,
+        user_id: user.id,
+        name: await encryptData(challengeData.name, user.id),
+        description: challengeData.description
+          ? await encryptData(challengeData.description, user.id)
+          : null,
+        reward_text: challengeData.reward_text
+          ? await encryptData(challengeData.reward_text, user.id)
+          : null,
+      }
+
       const { data, error: createError } = await supabase
         .from("challenges")
-        .insert([{ ...challengeData, user_id: user.id }])
+        .insert([encryptedData])
         .select()
         .single()
 
@@ -66,17 +102,56 @@ export function useChallenges() {
     setError(null)
 
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) throw new Error("User not authenticated")
+
+      const encryptedUpdates = {
+        ...updates,
+        updated_at: new Date().toISOString(),
+      }
+
+      if (updates.name) {
+        encryptedUpdates.name = await encryptData(updates.name, user.id)
+      }
+      if (updates.description) {
+        encryptedUpdates.description = await encryptData(
+          updates.description,
+          user.id
+        )
+      }
+      if (updates.reward_text) {
+        encryptedUpdates.reward_text = await encryptData(
+          updates.reward_text,
+          user.id
+        )
+      }
+
       const { data, error: updateError } = await supabase
         .from("challenges")
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update(encryptedUpdates)
         .eq("id", id)
         .select()
         .single()
 
       if (updateError) throw updateError
 
-      setChallenges((prev) => prev.map((c) => (c.id === id ? data : c)))
-      return data
+      // Decrypt the returned data to update local state
+      const decryptedData = {
+        ...data,
+        name: (await decryptData(data.name, user.id)) || data.name,
+        description:
+          (await decryptData(data.description, user.id)) || data.description,
+        reward_text:
+          (await decryptData(data.reward_text, user.id)) || data.reward_text,
+      }
+
+      setChallenges((prev) =>
+        prev.map((c) => (c.id === id ? decryptedData : c))
+      )
+      return decryptedData
     } catch (err) {
       setError(err.message)
       return null

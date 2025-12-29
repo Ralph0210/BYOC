@@ -1,5 +1,6 @@
 import { ArrowLeft, Shield, Lock, Eye, Server, UserCheck } from "lucide-react"
 import { Button } from "../ui/Button"
+import logo from "../../assets/byoc-logo.png"
 
 export function PrivacyPolicyPage({ onBack }) {
   return (
@@ -8,11 +9,7 @@ export function PrivacyPolicyPage({ onBack }) {
       <header className="px-6 py-5 border-b border-app sticky top-0 bg-app/80 backdrop-blur-lg z-50">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <img
-              src="/byoc-logo.png"
-              alt="BYOC"
-              className="w-9 h-9 rounded-xl"
-            />
+            <img src={logo} alt="BYOC" className="w-9 h-9 rounded-xl" />
             <span className="text-xl font-bold tracking-tight text-primary">
               BYOC
             </span>
@@ -41,7 +38,7 @@ export function PrivacyPolicyPage({ onBack }) {
           <div className="space-y-12 text-primary leading-relaxed">
             <section className="prose dark:prose-invert max-w-none">
               <p className="text-lg text-secondary leading-relaxed">
-                At Path, we believe that your habits and personal challenges are
+                At BYOC, we believe that your habits and personal challenges are
                 yours alone. We operate on a{" "}
                 <strong>"Data Minimization"</strong> principle. We only store
                 the absolute minimum information required to make the
@@ -54,13 +51,14 @@ export function PrivacyPolicyPage({ onBack }) {
                 <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center mb-4">
                   <Lock className="w-5 h-5 text-blue-500" />
                 </div>
-                <h3 className="text-lg font-bold mb-2">API Key Encryption</h3>
+                <h3 className="text-lg font-bold mb-2">
+                  Total Content Encryption
+                </h3>
                 <p className="text-sm text-secondary">
-                  Your API keys (OpenAI, Anthropic, Gemini) are{" "}
-                  <strong>encrypted with AES-256</strong> before they ever touch
-                  our database. They are only decrypted momentarily when you
-                  make a request to the AI. Even our developers cannot read your
-                  keys.
+                  We don't just encrypt your API keys. Your **Challenges, Tasks,
+                  and AI Personality** settings are all encrypted with AES-256
+                  before they touch our database. We store them as unreadable
+                  ciphertext. We literally cannot see your goals or habits.
                 </p>
               </div>
 
@@ -90,12 +88,12 @@ export function PrivacyPolicyPage({ onBack }) {
                     Picture (from Google Auth).
                   </li>
                   <li>
-                    <strong>Content:</strong> Challenges, Tasks, and Completion
-                    History you create.
+                    <strong>Content (Stored Encrypted):</strong> Challenges,
+                    Tasks, and Completion History you create.
                   </li>
                   <li>
-                    <strong>Preferences:</strong> Theme settings and AI
-                    personality configuration.
+                    <strong>Preferences (Stored Encrypted):</strong> Theme
+                    settings and AI personality configuration.
                   </li>
                 </ul>
               </div>

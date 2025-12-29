@@ -7,7 +7,7 @@ import {
 } from "react"
 import { supabase } from "../lib/supabase"
 import { useAuth } from "./useAuth"
-import { encryptApiKey, decryptApiKey } from "../lib/crypto"
+import { encryptData, decryptData } from "../lib/crypto"
 
 // Create a context for sharing AI config state across components
 const AIConfigContext = createContext(null)
@@ -51,11 +51,29 @@ export function useAIConfig() {
         throw error
       }
 
-      // Decrypt API key if it exists
-      let decryptedConfig = data
+      // Decrypt sensitive fields if they exist
+      let decryptedConfig = { ...data }
+
       if (data?.api_key) {
-        const decryptedKey = await decryptApiKey(data.api_key, user.id)
-        decryptedConfig = { ...data, api_key: decryptedKey }
+        decryptedConfig.api_key = await decryptData(data.api_key, user.id)
+      }
+      if (data?.companion_name) {
+        decryptedConfig.companion_name = await decryptData(
+          data.companion_name,
+          user.id
+        )
+      }
+      if (data?.user_details) {
+        decryptedConfig.user_details = await decryptData(
+          data.user_details,
+          user.id
+        )
+      }
+      if (data?.custom_personality_prompt) {
+        decryptedConfig.custom_personality_prompt = await decryptData(
+          data.custom_personality_prompt,
+          user.id
+        )
       }
 
       sharedConfig = decryptedConfig || {
@@ -83,9 +101,15 @@ export function useAIConfig() {
     try {
       sharedError = null
 
-      // Encrypt API key before storing
+      // Encrypt sensitive fields
       const encryptedApiKey = newConfig.api_key
-        ? await encryptApiKey(newConfig.api_key, user.id)
+        ? await encryptData(newConfig.api_key, user.id)
+        : null
+      const encryptedCompanionName = newConfig.companion_name
+        ? await encryptData(newConfig.companion_name, user.id)
+        : null
+      const encryptedUserDetails = newConfig.user_details
+        ? await encryptData(newConfig.user_details, user.id)
         : null
 
       // Build the upsert payload
@@ -95,10 +119,15 @@ export function useAIConfig() {
         api_key: encryptedApiKey,
         model: newConfig.model,
         personality_preset: newConfig.personality_preset,
-        custom_instructions: newConfig.custom_instructions || null,
-        custom_personality_prompt: newConfig.custom_personality_prompt || null,
-        user_details: newConfig.user_details || null,
-        companion_name: newConfig.companion_name || null,
+        custom_instructions: newConfig.custom_instructions || null, // Keeping customization open? User said "AI personality configuration".
+        // Wait, "AI personality configuration" -> personality_preset, custom_instructions, custom_personality_prompt.
+        // Prompt might be sensitive.
+        // Presets are enums, not sensitive.
+        custom_personality_prompt: newConfig.custom_personality_prompt
+          ? await encryptData(newConfig.custom_personality_prompt, user.id)
+          : null,
+        user_details: encryptedUserDetails,
+        companion_name: encryptedCompanionName,
         companion_photo_url: newConfig.companion_photo_url || null,
         updated_at: new Date().toISOString(),
       }
@@ -115,7 +144,13 @@ export function useAIConfig() {
       if (error) throw error
 
       // Store decrypted version in shared state for immediate use by ALL components
-      const decryptedData = { ...data, api_key: newConfig.api_key }
+      const decryptedData = {
+        ...data,
+        api_key: newConfig.api_key,
+        companion_name: newConfig.companion_name,
+        user_details: newConfig.user_details,
+        custom_personality_prompt: newConfig.custom_personality_prompt,
+      }
       sharedConfig = decryptedData
       notifyListeners() // Notify all components to re-render with new config
       return decryptedData
