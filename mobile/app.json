@@ -13,7 +13,8 @@
       "bundleIdentifier": "com.ralph0210.mobile",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "appleTeamId": "B4ABZQNA7J"
     },
     "android": {
       "adaptiveIcon": {

@@ -1,21 +1,13 @@
-import {
-  useState,
-  useEffect,
-  useCallback,
-  createContext,
-  useContext,
-} from "react"
+import { useState, useEffect, useCallback } from "react"
 import { supabase } from "../lib/supabase"
 import { useAuth } from "./useAuth"
-import { encryptData, decryptData } from "../lib/crypto"
-
-// Create a context for sharing AI config state across components
-const AIConfigContext = createContext(null)
+import { encryptData, decryptData, isEncrypted } from "../lib/crypto"
 
 // Singleton state for sharing across all hook instances
 let sharedConfig = null
 let sharedLoading = true
 let sharedError = null
+let sharedNeedsReEntry = false
 const listeners = new Set()
 
 function notifyListeners() {
@@ -53,29 +45,55 @@ export function useAIConfig() {
 
       // Decrypt sensitive fields if they exist
       let decryptedConfig = { ...data }
+      let decryptionFailed = false
 
-      if (data?.api_key) {
-        decryptedConfig.api_key = await decryptData(data.api_key, user.id)
+      if (data?.api_key && isEncrypted(data.api_key)) {
+        const decrypted = await decryptData(data.api_key, user.id)
+        if (decrypted !== null) {
+          decryptedConfig.api_key = decrypted
+        } else {
+          decryptionFailed = true
+          decryptedConfig.api_key = null
+        }
       }
-      if (data?.companion_name) {
-        decryptedConfig.companion_name = await decryptData(
-          data.companion_name,
-          user.id
-        )
+
+      if (data?.companion_name && isEncrypted(data.companion_name)) {
+        const decrypted = await decryptData(data.companion_name, user.id)
+        if (decrypted !== null) {
+          decryptedConfig.companion_name = decrypted
+        } else {
+          decryptionFailed = true
+          decryptedConfig.companion_name = null
+        }
       }
-      if (data?.user_details) {
-        decryptedConfig.user_details = await decryptData(
-          data.user_details,
-          user.id
-        )
+
+      if (data?.user_details && isEncrypted(data.user_details)) {
+        const decrypted = await decryptData(data.user_details, user.id)
+        if (decrypted !== null) {
+          decryptedConfig.user_details = decrypted
+        } else {
+          decryptionFailed = true
+          decryptedConfig.user_details = null
+        }
       }
-      if (data?.custom_personality_prompt) {
-        decryptedConfig.custom_personality_prompt = await decryptData(
+
+      if (
+        data?.custom_personality_prompt &&
+        isEncrypted(data.custom_personality_prompt)
+      ) {
+        const decrypted = await decryptData(
           data.custom_personality_prompt,
           user.id
         )
+        if (decrypted !== null) {
+          decryptedConfig.custom_personality_prompt = decrypted
+        } else {
+          decryptionFailed = true
+          decryptedConfig.custom_personality_prompt = null
+        }
       }
 
+      sharedNeedsReEntry = decryptionFailed
       sharedConfig = decryptedConfig || {
         provider: "openai",
         model: "gpt-4o-mini",
@@ -111,6 +129,9 @@ export function useAIConfig() {
       const encryptedUserDetails = newConfig.user_details
         ? await encryptData(newConfig.user_details, user.id)
         : null
+      const encryptedCustomPrompt = newConfig.custom_personality_prompt
+        ? await encryptData(newConfig.custom_personality_prompt, user.id)
+        : null
 
       // Build the upsert payload
       const payload = {
@@ -119,13 +140,8 @@ export function useAIConfig() {
         api_key: encryptedApiKey,
         model: newConfig.model,
         personality_preset: newConfig.personality_preset,
-        custom_instructions: newConfig.custom_instructions || null, // Keeping customization open? User said "AI personality configuration".
-        // Wait, "AI personality configuration" -> personality_preset, custom_instructions, custom_personality_prompt.
-        // Prompt might be sensitive.
-        // Presets are enums, not sensitive.
-        custom_personality_prompt: newConfig.custom_personality_prompt
-          ? await encryptData(newConfig.custom_personality_prompt, user.id)
-          : null,
+        custom_instructions: newConfig.custom_instructions || null,
+        custom_personality_prompt: encryptedCustomPrompt,
         user_details: encryptedUserDetails,
         companion_name: encryptedCompanionName,
         companion_photo_url: newConfig.companion_photo_url || null,
@@ -151,6 +167,7 @@ export function useAIConfig() {
         user_details: newConfig.user_details,
         custom_personality_prompt: newConfig.custom_personality_prompt,
       }
+      sharedNeedsReEntry = false
       sharedConfig = decryptedData
       notifyListeners() // Notify all components to re-render with new config
       return decryptedData
@@ -175,5 +192,6 @@ export function useAIConfig() {
     updateConfig,
     refetch: fetchConfig,
     hasKey,
+    needsReEntry: sharedNeedsReEntry,
   }
 }

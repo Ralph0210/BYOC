@@ -7,7 +7,7 @@
  * - AuthProvider: Authentication state
  */
 
-// Polyfill Buffer for react-native-quick-crypto
+// Polyfill Buffer for compatibility
 import { Buffer } from "buffer"
 global.Buffer = Buffer
 
