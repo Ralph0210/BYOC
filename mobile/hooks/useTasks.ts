@@ -13,6 +13,10 @@ import { Task, FrequencyType } from "../lib/utils"
 export interface TaskDB extends Task {
   sort_order?: number
   note?: string
+  icon: string
+  color: string
+  description?: string
+  custom_days?: number[] // Match Task.custom_days (0-6)
 }
 
 interface UseTasksReturn {

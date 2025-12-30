@@ -313,8 +313,7 @@ export default function HomeScreen() {
             tasks={challengeTasks}
             completions={completions}
             onChat={() => {
-              // TODO: Open chat modal
-              Alert.alert("Coming Soon", "Chat interface is under construction")
+              router.push("/chat")
             }}
           />
         )}
@@ -422,11 +421,12 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.inlineAddButton}
             onPress={() => {
-              // Initial implementation: Just show alert or nav to settings as generic "add" placeholder since we lack Task Form page
-              // The user objective said "move Add BUTTON to settings". It didn't say remove functionality.
-              // But "Home page, show all the things like web app". Web app has "Add" button in the task list card.
-              // Mobile doesn't have Task Form implemented yet (Task 1 in Missing Features).
-              Alert.alert("Add Task", "Task creation screen is coming soon!")
+              if (selectedChallenge) {
+                router.push({
+                  pathname: "/task/new",
+                  params: { challengeId: selectedChallenge.id },
+                })
+              }
             }}
           >
             <Ionicons name="add" size={16} color={colors.textTertiary} />

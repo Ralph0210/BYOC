@@ -11,9 +11,10 @@ import Swipeable from "react-native-gesture-handler/Swipeable"
 import { Ionicons } from "@expo/vector-icons"
 import * as Haptics from "expo-haptics"
 import { useTheme } from "../contexts/ThemeContext"
-import { typography, spacing, radius } from "../lib/theme"
+import { typography, spacing } from "../lib/theme"
 import { TaskDB } from "../hooks/useTasks"
 import { TaskAmbientNote } from "./ai/TaskAmbientNote"
+import { ICON_MAP } from "../lib/constants"
 
 interface TaskItemProps {
   task: TaskDB
@@ -68,6 +69,9 @@ export function TaskItem({
     )
   }
 
+  // Helper to get icon name
+  const iconName = (ICON_MAP[task.icon] || "ellipse-outline") as any
+
   const content = (
     <Pressable
       style={({ pressed }) => [
@@ -79,23 +83,19 @@ export function TaskItem({
       ]}
       onPress={onPress}
     >
-      {/* Checkbox */}
-      <TouchableOpacity
+      {/* Left: Icon Box (Premium Look) */}
+      <View
         style={[
-          styles.checkbox,
+          styles.iconBox,
           {
-            borderColor: isCompleted ? colors.success : colors.border,
-            backgroundColor: isCompleted ? colors.success : "transparent",
+            backgroundColor: task.color + "20", // 12% opacity roughly matches web's 15%
           },
         ]}
-        onPress={handleToggle}
-        activeOpacity={0.7}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       >
-        {isCompleted && <Ionicons name="checkmark" size={14} color="#fff" />}
-      </TouchableOpacity>
+        <Ionicons name={iconName} size={24} color={task.color} />
+      </View>
 
-      {/* Task Info */}
+      {/* Middle: Task Info */}
       <View style={styles.contentContainer}>
         <Text
           style={[
@@ -106,29 +106,49 @@ export function TaskItem({
               textDecorationLine: isCompleted ? "line-through" : "none",
             },
           ]}
-          numberOfLines={2}
+          numberOfLines={1}
         >
           {task.name}
         </Text>
+        {task.description ? (
+          <Text
+            style={[
+              typography.caption1,
+              { color: colors.textTertiary, marginTop: 2 },
+            ]}
+            numberOfLines={1}
+          >
+            {task.description}
+          </Text>
+        ) : null}
 
         {/* AI Ambient Note */}
         {!isCompleted && (
-          <TaskAmbientNote
-            task={task}
-            lastCompletedDate={lastCompletedDate || null}
-          />
+          <View style={{ marginTop: 4 }}>
+            <TaskAmbientNote
+              task={task}
+              lastCompletedDate={lastCompletedDate || null}
+            />
+          </View>
         )}
       </View>
 
-      {/* Chevron */}
-      {onPress && (
-        <Ionicons
-          name="chevron-forward"
-          size={18}
-          color={colors.textTertiary}
-          style={styles.chevron}
-        />
-      )}
+      {/* Right: Checkbox (Circle) */}
+      <TouchableOpacity
+        style={[
+          styles.checkbox,
+          {
+            borderColor: isCompleted ? "transparent" : colors.border,
+            backgroundColor: isCompleted ? colors.success : "transparent",
+            borderWidth: isCompleted ? 0 : 2,
+          },
+        ]}
+        onPress={handleToggle}
+        activeOpacity={0.7}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      >
+        {isCompleted && <Ionicons name="checkmark" size={16} color="#fff" />}
+      </TouchableOpacity>
     </Pressable>
   )
 
@@ -148,20 +168,18 @@ export function TaskItem({
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    alignItems: "center", // Align items to center vertically
+    alignItems: "center",
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md, // Match web p-4
     borderBottomWidth: StyleSheet.hairlineWidth,
-    backgroundColor: "#fff", // Ensure background is set for swipeable
+    gap: spacing.md, // Match web gap-4
   },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
+  iconBox: {
+    width: 48, // Web w-12
+    height: 48,
+    borderRadius: 16, // Web rounded-2xl
     alignItems: "center",
     justifyContent: "center",
-    marginRight: spacing.md,
   },
   contentContainer: {
     flex: 1,
@@ -170,14 +188,21 @@ const styles = StyleSheet.create({
   taskName: {
     marginBottom: 0,
   },
-  chevron: {
-    marginLeft: spacing.sm,
+  checkbox: {
+    width: 32, // Web w-8
+    height: 32,
+    borderRadius: 16, // Rounded full
+    alignItems: "center",
+    justifyContent: "center",
   },
   deleteButton: {
-    backgroundColor: "#FF3B30",
+    backgroundColor: "#ef4444",
     justifyContent: "center",
     alignItems: "center",
     width: 80,
     height: "100%",
+  },
+  chevron: {
+    marginLeft: spacing.sm,
   },
 })
