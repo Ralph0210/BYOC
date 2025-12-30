@@ -1,18 +1,18 @@
 /**
- * Crypto utilities for decrypting AI config data
- * Matches web app encryption format: PBKDF2 + AES-GCM
+ * Crypto utilities for encrypting/decrypting sensitive data
+ * Uses crypto-js (pure JavaScript) for cross-platform compatibility
  *
- * Uses react-native-quick-crypto for native crypto operations.
+ * Note: crypto-js doesn't support AES-GCM natively, so we use AES with
+ * PBKDF2 key derivation. The format is: "encrypted:" + base64(salt + iv + ciphertext)
  */
 
-import QuickCrypto from "react-native-quick-crypto"
-import { Buffer } from "buffer"
+import CryptoJS from "crypto-js"
 
-// Salt used for key derivation (must match web app)
-const SALT = "path-app-api-key-encryption-v1"
-const ITERATIONS = 100000
-const KEY_LENGTH = 32 // 256 bits
-const IV_LENGTH = 12
+// Salt used for key derivation (must match across platforms)
+const SALT_PREFIX = "path-app-crypto-v2"
+const ITERATIONS = 10000 // Lower than before for JS performance
+const KEY_SIZE = 256 / 32 // 256 bits = 8 words
+const IV_SIZE = 128 / 32 // 128 bits = 4 words
 
 /**
  * Checks if a value is encrypted (has "encrypted:" prefix)
@@ -24,29 +24,62 @@ export function isEncrypted(value: string | null | undefined): boolean {
 /**
  * Derives an encryption key from the user's ID using PBKDF2
  */
-async function deriveKey(userId: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    QuickCrypto.pbkdf2(
-      userId,
-      SALT,
-      ITERATIONS,
-      KEY_LENGTH,
-      "sha256",
-      (err, derivedKey) => {
-        if (err) {
-          reject(err)
-        } else {
-          resolve(Buffer.from(derivedKey as ArrayBuffer))
-        }
-      }
-    )
+function deriveKey(
+  userId: string,
+  salt: CryptoJS.lib.WordArray
+): CryptoJS.lib.WordArray {
+  return CryptoJS.PBKDF2(userId, salt, {
+    keySize: KEY_SIZE,
+    iterations: ITERATIONS,
+    hasher: CryptoJS.algo.SHA256,
   })
 }
 
 /**
- * Decrypts data encrypted by the web app using AES-256-GCM
+ * Encrypts data using AES-256 with PBKDF2 key derivation
  *
- * @param encryptedData - Base64 encoded encrypted data with "encrypted:" prefix
+ * @param plainText - The plain text to encrypt
+ * @param userId - The user's unique ID (used to derive encryption key)
+ * @returns Encrypted string with "encrypted:" prefix, or null if input is null
+ */
+export async function encryptData(
+  plainText: string | null | undefined,
+  userId: string
+): Promise<string | null> {
+  if (!plainText) return null
+
+  try {
+    // Generate random salt and IV
+    const salt = CryptoJS.lib.WordArray.random(16) // 128 bits
+    const iv = CryptoJS.lib.WordArray.random(16) // 128 bits
+
+    // Derive key from user ID and salt
+    const key = deriveKey(
+      userId,
+      CryptoJS.enc.Utf8.parse(SALT_PREFIX).concat(salt)
+    )
+
+    // Encrypt
+    const encrypted = CryptoJS.AES.encrypt(plainText, key, {
+      iv: iv,
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7,
+    })
+
+    // Combine salt + iv + ciphertext
+    const combined = salt.concat(iv).concat(encrypted.ciphertext)
+
+    return "encrypted:" + CryptoJS.enc.Base64.stringify(combined)
+  } catch (error) {
+    console.error("Failed to encrypt data:", error)
+    return null
+  }
+}
+
+/**
+ * Decrypts data encrypted by encryptData
+ *
+ * @param encryptedData - Encrypted string with "encrypted:" prefix
  * @param userId - The user's unique ID (used to derive decryption key)
  * @returns The decrypted plaintext, or null if decryption fails
  */
@@ -62,82 +95,49 @@ export async function decryptData(
   }
 
   try {
-    // Remove "encrypted:" prefix and decode base64
+    // Remove prefix and decode base64
     const base64Data = encryptedData.slice("encrypted:".length)
-    const combined = Buffer.from(base64Data, "base64")
+    const combined = CryptoJS.enc.Base64.parse(base64Data)
 
-    // Extract IV (first 12 bytes) and ciphertext+tag (rest)
-    const iv = combined.subarray(0, IV_LENGTH)
-    const ciphertextWithTag = combined.subarray(IV_LENGTH)
+    // Extract salt (first 16 bytes / 4 words)
+    const salt = CryptoJS.lib.WordArray.create(combined.words.slice(0, 4), 16)
 
-    // Derive the decryption key
-    const key = await deriveKey(userId)
+    // Extract IV (next 16 bytes / 4 words)
+    const iv = CryptoJS.lib.WordArray.create(combined.words.slice(4, 8), 16)
 
-    // Create decipher with AES-256-GCM
-    const decipher = QuickCrypto.createDecipheriv("aes-256-gcm", key, iv)
-
-    // Set the auth tag (last 16 bytes of ciphertext)
-    const tagLength = 16
-    const ciphertext = ciphertextWithTag.subarray(
-      0,
-      ciphertextWithTag.length - tagLength
+    // Extract ciphertext (remaining bytes)
+    const ciphertext = CryptoJS.lib.WordArray.create(
+      combined.words.slice(8),
+      combined.sigBytes - 32
     )
-    const authTag = ciphertextWithTag.subarray(
-      ciphertextWithTag.length - tagLength
+
+    // Derive key from user ID and salt
+    const key = deriveKey(
+      userId,
+      CryptoJS.enc.Utf8.parse(SALT_PREFIX).concat(salt)
     )
-    decipher.setAuthTag(authTag)
 
     // Decrypt
-    let decrypted = decipher.update(ciphertext, undefined, "utf8")
-    decrypted += decipher.final("utf8")
+    const decrypted = CryptoJS.AES.decrypt(
+      { ciphertext: ciphertext } as CryptoJS.lib.CipherParams,
+      key,
+      {
+        iv: iv,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7,
+      }
+    )
 
-    return decrypted
+    const plainText = decrypted.toString(CryptoJS.enc.Utf8)
+
+    if (!plainText) {
+      console.warn("[crypto] Decryption produced empty result")
+      return null
+    }
+
+    return plainText
   } catch (error) {
     console.error("Failed to decrypt data:", error)
-    return null
-  }
-}
-
-/**
- * Encrypts data using AES-256-GCM (for mobile-originated data)
- *
- * Note: For cross-platform compatibility, we encrypt with the same format as web.
- *
- * @param plainText - The plain text to encrypt
- * @param userId - The user's unique ID
- * @returns Base64 encoded encrypted data with "encrypted:" prefix
- */
-export async function encryptData(
-  plainText: string | null | undefined,
-  userId: string
-): Promise<string | null> {
-  if (!plainText) return null
-
-  try {
-    // Derive the encryption key
-    const key = await deriveKey(userId)
-
-    // Generate random IV
-    const iv = Buffer.from(QuickCrypto.randomBytes(IV_LENGTH))
-
-    // Create cipher with AES-256-GCM
-    const cipher = QuickCrypto.createCipheriv("aes-256-gcm", key, iv)
-
-    // Encrypt the data
-    let encrypted = cipher.update(plainText, "utf8")
-    const final = cipher.final()
-    encrypted = Buffer.concat([Buffer.from(encrypted), Buffer.from(final)])
-
-    // Get the auth tag
-    const authTag = Buffer.from(cipher.getAuthTag())
-
-    // Combine IV + ciphertext + authTag
-    const combined = Buffer.concat([iv, encrypted, authTag])
-
-    // Return with prefix
-    return "encrypted:" + combined.toString("base64")
-  } catch (error) {
-    console.error("Failed to encrypt data:", error)
     return null
   }
 }

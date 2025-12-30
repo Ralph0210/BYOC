@@ -2,7 +2,7 @@
  * useAIConfig Hook
  *
  * Manages AI configuration (API key, model, personality settings).
- * Automatically decrypts data encrypted by web app.
+ * Automatically encrypts/decrypts sensitive data for cross-platform sync.
  */
 
 import { useState, useEffect, useCallback } from "react"

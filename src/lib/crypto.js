@@ -1,79 +1,80 @@
 /**
- * Client-side encryption utilities for API keys
- * Uses Web Crypto API with AES-GCM for secure encryption
+ * Crypto utilities for encrypting/decrypting sensitive data
+ * Uses crypto-js (pure JavaScript) for cross-platform compatibility
+ *
+ * Note: This format is shared between web and mobile apps.
+ * Format: "encrypted:" + base64(salt + iv + ciphertext)
  */
 
-// Salt used for key derivation (can be public, just needs to be consistent)
-const SALT = "path-app-api-key-encryption-v1"
+import CryptoJS from "crypto-js"
+
+// Salt used for key derivation (must match across platforms)
+const SALT_PREFIX = "path-app-crypto-v2"
+const ITERATIONS = 10000 // Lower than before for JS performance
+const KEY_SIZE = 256 / 32 // 256 bits = 8 words
 
 /**
- * Derives an encryption key from the user's ID
- * @param {string} userId - The user's unique ID
- * @returns {Promise<CryptoKey>} - The derived encryption key
+ * Checks if a value is encrypted (has "encrypted:" prefix)
  */
-async function deriveKey(userId) {
-  const encoder = new TextEncoder()
-
-  // Import the user ID as key material
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(userId),
-    { name: "PBKDF2" },
-    false,
-    ["deriveKey"]
-  )
-
-  // Derive the actual encryption key
-  return crypto.subtle.deriveKey(
-    {
-      name: "PBKDF2",
-      salt: encoder.encode(SALT),
-      iterations: 100000,
-      hash: "SHA-256",
-    },
-    keyMaterial,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"]
-  )
+export function isEncrypted(value) {
+  return value?.startsWith("encrypted:") ?? false
 }
 
 /**
- * Encrypts data using AES-GCM
- * @param {string} plainText - The plain text to encrypt
- * @param {string} userId - The user's unique ID
- * @returns {Promise<string>} - Base64 encoded encrypted data (iv + ciphertext)
+ * Derives an encryption key from the user's ID using PBKDF2
+ */
+function deriveKey(userId, salt) {
+  return CryptoJS.PBKDF2(userId, salt, {
+    keySize: KEY_SIZE,
+    iterations: ITERATIONS,
+    hasher: CryptoJS.algo.SHA256,
+  })
+}
+
+/**
+ * Encrypts data using AES-256 with PBKDF2 key derivation
+ *
+ * @param {string|null} plainText - The plain text to encrypt
+ * @param {string} userId - The user's unique ID (used to derive encryption key)
+ * @returns {Promise<string|null>} Encrypted string with "encrypted:" prefix
  */
 export async function encryptData(plainText, userId) {
   if (!plainText) return null
 
-  const encoder = new TextEncoder()
-  const key = await deriveKey(userId)
+  try {
+    // Generate random salt and IV
+    const salt = CryptoJS.lib.WordArray.random(16) // 128 bits
+    const iv = CryptoJS.lib.WordArray.random(16) // 128 bits
 
-  // Generate a random IV for each encryption
-  const iv = crypto.getRandomValues(new Uint8Array(12))
+    // Derive key from user ID and salt
+    const key = deriveKey(
+      userId,
+      CryptoJS.enc.Utf8.parse(SALT_PREFIX).concat(salt)
+    )
 
-  // Encrypt the data
-  const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    encoder.encode(plainText)
-  )
+    // Encrypt
+    const encrypted = CryptoJS.AES.encrypt(plainText, key, {
+      iv: iv,
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7,
+    })
 
-  // Combine IV + ciphertext and encode as base64
-  const combined = new Uint8Array(iv.length + encrypted.byteLength)
-  combined.set(iv)
-  combined.set(new Uint8Array(encrypted), iv.length)
+    // Combine salt + iv + ciphertext
+    const combined = salt.concat(iv).concat(encrypted.ciphertext)
 
-  // Add a prefix to identify encrypted values
-  return "encrypted:" + btoa(String.fromCharCode(...combined))
+    return "encrypted:" + CryptoJS.enc.Base64.stringify(combined)
+  } catch (error) {
+    console.error("Failed to encrypt data:", error)
+    return null
+  }
 }
 
 /**
- * Decrypts data using AES-GCM
- * @param {string} encryptedData - Base64 encoded encrypted data with "encrypted:" prefix
- * @param {string} userId - The user's unique ID
- * @returns {Promise<string>} - The decrypted text
+ * Decrypts data encrypted by encryptData
+ *
+ * @param {string|null} encryptedData - Encrypted string with "encrypted:" prefix
+ * @param {string} userId - The user's unique ID (used to derive decryption key)
+ * @returns {Promise<string|null>} The decrypted plaintext, or null if decryption fails
  */
 export async function decryptData(encryptedData, userId) {
   if (!encryptedData) return null
@@ -84,48 +85,45 @@ export async function decryptData(encryptedData, userId) {
   }
 
   try {
-    const key = await deriveKey(userId)
-
     // Remove prefix and decode base64
     const base64Data = encryptedData.slice("encrypted:".length)
-    const combined = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
+    const combined = CryptoJS.enc.Base64.parse(base64Data)
 
-    // Extract IV (first 12 bytes) and ciphertext (rest)
-    const iv = combined.slice(0, 12)
-    const ciphertext = combined.slice(12)
+    // Extract salt (first 16 bytes / 4 words)
+    const salt = CryptoJS.lib.WordArray.create(combined.words.slice(0, 4), 16)
 
-    // Decrypt
-    const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
-      key,
-      ciphertext
+    // Extract IV (next 16 bytes / 4 words)
+    const iv = CryptoJS.lib.WordArray.create(combined.words.slice(4, 8), 16)
+
+    // Extract ciphertext (remaining bytes)
+    const ciphertext = CryptoJS.lib.WordArray.create(
+      combined.words.slice(8),
+      combined.sigBytes - 32
     )
 
-    return new TextDecoder().decode(decrypted)
+    // Derive key from user ID and salt
+    const key = deriveKey(
+      userId,
+      CryptoJS.enc.Utf8.parse(SALT_PREFIX).concat(salt)
+    )
+
+    // Decrypt
+    const decrypted = CryptoJS.AES.decrypt({ ciphertext: ciphertext }, key, {
+      iv: iv,
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7,
+    })
+
+    const plainText = decrypted.toString(CryptoJS.enc.Utf8)
+
+    if (!plainText) {
+      console.warn("[crypto] Decryption produced empty result")
+      return null
+    }
+
+    return plainText
   } catch (error) {
     console.error("Failed to decrypt data:", error)
-    // Return the original data on failure (fallback) instead of null to avoid UI crashing on partial failures?
-    // Actually, if it's encrypted but fails to decrypt, showing ciphertext is ugly.
-    // Returning null is safer for logic, but might blank out fields.
-    // Let's return original string if decryption fails, assuming it might not be encrypted correctly?
-    // User requested "my supabase can see nothing". If I return null, data is lost in UI.
-    // If I return original, UI shows "encrypted:...".
-    // I'll stick to returning null or throwing?
-    // Existing code returned null. I'll stick to null for consistency, but maybe I should return original for partial fails?
-    // No, existing code returns null.
     return null
   }
-}
-
-// Legacy exports for backward compatibility if needed, or aliases
-export const encryptApiKey = encryptData
-export const decryptApiKey = decryptData
-
-/**
- * Checks if a value is encrypted
- * @param {string} value - The value to check
- * @returns {boolean} - True if encrypted
- */
-export function isEncrypted(value) {
-  return value?.startsWith("encrypted:")
 }
