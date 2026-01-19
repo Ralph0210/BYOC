@@ -21,7 +21,8 @@ function getOpenAIClient(config) {
 /**
  * Call Anthropic API directly (different format from OpenAI)
  */
-async function callAnthropic(messages, config, contextType = "chat") {
+async function callAnthropic(messages, config, options = {}) {
+  const { contextType = "chat", maxTokens = 500 } = options
   // Convert OpenAI-style messages to Anthropic format
   const systemMessage = messages.find((m) => m.role === "system")
   const chatMessages = messages.filter((m) => m.role !== "system")
@@ -36,7 +37,7 @@ async function callAnthropic(messages, config, contextType = "chat") {
     },
     body: JSON.stringify({
       model: config.model || "claude-sonnet-4-20250514",
-      max_tokens: 500,
+      max_tokens: maxTokens,
       system: systemMessage?.content || "",
       messages: chatMessages.map((m) => ({
         role: m.role === "assistant" ? "assistant" : "user",
@@ -79,7 +80,8 @@ async function callAnthropic(messages, config, contextType = "chat") {
 /**
  * Call Google Gemini API directly
  */
-async function callGoogle(messages, config, contextType = "chat") {
+async function callGoogle(messages, config, options = {}) {
+  const { contextType = "chat", maxTokens = 500 } = options
   const systemMessage = messages.find((m) => m.role === "system")
   const chatMessages = messages.filter((m) => m.role !== "system")
 
@@ -103,7 +105,7 @@ async function callGoogle(messages, config, contextType = "chat") {
         ? { parts: [{ text: systemMessage.content }] }
         : undefined,
       generationConfig: {
-        maxOutputTokens: 500,
+        maxOutputTokens: maxTokens,
         temperature: 0.7,
       },
     }),
@@ -149,18 +151,22 @@ export async function callAI(messages, config, options = {}) {
     throw new Error("No API key configured")
   }
 
+  // Set max tokens based on context type
+  // Goal plans need more tokens for full 4-week plan
+  const maxTokens = contextType.startsWith("goal_plan") ? 2000 : 500
+
   const provider = getProviderById(config.provider)
   const modelToUse = config.model
 
   try {
     // Use Anthropic's native API
     if (provider.apiFormat === "anthropic") {
-      return await callAnthropic(messages, config, contextType)
+      return await callAnthropic(messages, config, { contextType, maxTokens })
     }
 
     // Use Google's native API
     if (provider.apiFormat === "google") {
-      return await callGoogle(messages, config, contextType)
+      return await callGoogle(messages, config, { contextType, maxTokens })
     }
 
     // Use OpenAI SDK for OpenAI-compatible APIs
@@ -168,7 +174,7 @@ export async function callAI(messages, config, options = {}) {
     const response = await client.chat.completions.create({
       model: modelToUse || "gpt-4o-mini",
       messages,
-      max_tokens: 500,
+      max_tokens: maxTokens,
       temperature: 0.7,
     })
 
@@ -252,7 +258,7 @@ export async function listModels(config) {
         (m) =>
           m.id.includes("gpt") ||
           m.id.includes("grok") ||
-          m.id.includes("claude")
+          m.id.includes("claude"),
       )
       .map((m) => m.id)
       .slice(0, 20)

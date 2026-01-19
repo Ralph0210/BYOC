@@ -181,7 +181,7 @@ function App() {
             }))
             const startDate = dates.reduce(
               (min, d) => (d.start < min ? d.start : min),
-              dates[0].start
+              dates[0].start,
             )
             fetchCompletions(taskIds, startDate, today)
             fetchSnoozes(taskIds, startDate, today)
@@ -207,7 +207,7 @@ function App() {
 
       activeChallenges.forEach((challenge) => {
         const challengeTasks = tasks.filter(
-          (t) => t.challenge_id === challenge.id
+          (t) => t.challenge_id === challenge.id,
         )
 
         challengeTasks.forEach((task) => {
@@ -219,7 +219,7 @@ function App() {
           const daysSinceLastDone = lastCompletedDate
             ? Math.floor(
                 (new Date() - new Date(lastCompletedDate)) /
-                  (1000 * 60 * 60 * 24)
+                  (1000 * 60 * 60 * 24),
               )
             : 999
 
@@ -232,7 +232,7 @@ function App() {
               },
               config,
               user?.user_metadata?.full_name?.split(" ")[0] ||
-                user?.email?.split("@")[0]
+                user?.email?.split("@")[0],
             )
           }
         })
@@ -257,10 +257,10 @@ function App() {
         challenge,
         challengeTasks,
         completions,
-        snoozes
+        snoozes,
       )
     },
-    [completions, snoozes]
+    [completions, snoozes],
   )
 
   // Handle task snooze toggle
@@ -272,7 +272,7 @@ function App() {
         await addSnooze(taskId, date)
       }
     },
-    [isTaskSnoozed, addSnooze, removeSnooze]
+    [isTaskSnoozed, addSnooze, removeSnooze],
   )
 
   // Handle task completion
@@ -288,7 +288,7 @@ function App() {
         await addCompletion(taskId, date)
       }
     },
-    [tasks, getCompletionCountForTask, addCompletion]
+    [tasks, getCompletionCountForTask, addCompletion],
   )
 
   // Handle task uncomplete (decrement)
@@ -305,12 +305,12 @@ function App() {
         }))
         const startDate = dates.reduce(
           (min, d) => (d.start < min ? d.start : min),
-          dates[0].start
+          dates[0].start,
         )
         fetchCompletions(taskIds, startDate, today)
       }
     },
-    [challenges, tasks, removeCompletion, fetchCompletions, today]
+    [challenges, tasks, removeCompletion, fetchCompletions, today],
   )
 
   // Refetch completions after any completion change
@@ -324,22 +324,48 @@ function App() {
       }))
       const startDate = dates.reduce(
         (min, d) => (d.start < min ? d.start : min),
-        dates[0].start
+        dates[0].start,
       )
       fetchCompletions(taskIds, startDate, today)
     }
   }, [challenges, tasks, fetchCompletions, today])
 
   // Challenge handlers
-  const handleSaveChallenge = async (data) => {
+  const handleSaveChallenge = async (data, tasksToCreate = null) => {
+    let newChallengeId = null
+
     if (editingChallenge) {
       await updateChallenge(editingChallenge.id, data)
     } else {
-      await createChallenge(data)
+      const newChallenge = await createChallenge(data)
+
+      // If tasks are provided (from goal creation), create them
+      if (tasksToCreate && tasksToCreate.length > 0 && newChallenge) {
+        newChallengeId = newChallenge.id
+        for (const taskData of tasksToCreate) {
+          await createTask({ ...taskData, challenge_id: newChallenge.id })
+        }
+      }
     }
     setShowChallengeModal(false)
     setEditingChallenge(null)
-    fetchChallenges()
+
+    // Fetch challenges first, then tasks
+    await fetchChallenges()
+
+    // Refetch tasks - include the new challenge ID if we just created one
+    const challengeIds = challenges
+      .filter((c) => !c.is_archived)
+      .map((c) => c.id)
+
+    // Add the new challenge ID if it's not in the list yet
+    if (newChallengeId && !challengeIds.includes(newChallengeId)) {
+      challengeIds.push(newChallengeId)
+    }
+
+    if (challengeIds.length > 0) {
+      await fetchTasksForChallenges(challengeIds)
+    }
   }
 
   const handleDeleteChallenge = async (challengeId) => {
@@ -412,7 +438,7 @@ function App() {
       if (isTaskActiveOnDate(task, today)) {
         todayTarget += task.frequency_count || 1
         const taskCompletions = completions.filter(
-          (c) => c.task_id === task.id && c.date === today
+          (c) => c.task_id === task.id && c.date === today,
         ).length
         todayDone += Math.min(taskCompletions, task.frequency_count || 1)
       }
@@ -439,7 +465,7 @@ function App() {
               {daysRemaining > 0 && (
                 <span
                   className={cn(
-                    daysRemaining <= 3 && "text-orange-500 font-medium"
+                    daysRemaining <= 3 && "text-orange-500 font-medium",
                   )}
                 >
                   {daysRemaining} day{daysRemaining !== 1 ? "s" : ""} left
@@ -520,7 +546,7 @@ function App() {
               }}
               weeksToShow={
                 Math.ceil(
-                  daysDiff(challenge.start_date, challenge.end_date) / 7
+                  daysDiff(challenge.start_date, challenge.end_date) / 7,
                 ) + 1
               }
               minWeeks={20}
@@ -558,7 +584,7 @@ function App() {
             {(() => {
               const selectedDate = selectedDates[challenge.id] || today
               const dateTasks = challengeTasks.filter((t) =>
-                isTaskActiveOnDate(t, selectedDate)
+                isTaskActiveOnDate(t, selectedDate),
               )
               const isFutureDate = selectedDate > today
 
@@ -570,7 +596,7 @@ function App() {
                       task={task}
                       completionCount={getCompletionCountForTask(
                         task.id,
-                        selectedDate
+                        selectedDate,
                       )}
                       onComplete={handleCompleteTask}
                       onUncomplete={handleUncompleteTask}
@@ -642,7 +668,7 @@ function App() {
 
     // Tasks active on selected date
     const dateTasks = challengeTasks.filter((t) =>
-      isTaskActiveOnDate(t, selectedDate)
+      isTaskActiveOnDate(t, selectedDate),
     )
 
     // Date navigation handlers
@@ -731,7 +757,7 @@ function App() {
             onDateClick={handleDateClick}
             weeksToShow={
               Math.ceil(
-                daysDiff(challenge.start_date, challenge.end_date) / 7
+                daysDiff(challenge.start_date, challenge.end_date) / 7,
               ) + 1
             }
             minWeeks={20}
@@ -749,7 +775,7 @@ function App() {
                 disabled={!canGoPrev}
                 className={cn(
                   "p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800",
-                  !canGoPrev && "opacity-40 cursor-not-allowed"
+                  !canGoPrev && "opacity-40 cursor-not-allowed",
                 )}
               >
                 <ChevronLeft className="w-4 h-4 text-tertiary" />
@@ -761,7 +787,7 @@ function App() {
                   "text-sm font-medium px-2 py-1 rounded-lg",
                   isSelectedToday
                     ? "text-primary bg-primary-500/10"
-                    : "text-secondary hover:bg-gray-100 dark:hover:bg-gray-800"
+                    : "text-secondary hover:bg-gray-100 dark:hover:bg-gray-800",
                 )}
               >
                 {isSelectedToday ? "Today" : formatDisplayDate(selectedDate)}
@@ -772,7 +798,7 @@ function App() {
                 disabled={!canGoNext}
                 className={cn(
                   "p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800",
-                  !canGoNext && "opacity-40 cursor-not-allowed"
+                  !canGoNext && "opacity-40 cursor-not-allowed",
                 )}
               >
                 <ChevronRight className="w-4 h-4 text-tertiary" />
@@ -808,7 +834,7 @@ function App() {
                   task={task}
                   completionCount={getCompletionCountForTask(
                     task.id,
-                    selectedDate
+                    selectedDate,
                   )}
                   onComplete={handleCompleteTask}
                   onUncomplete={handleUncompleteTask}
@@ -849,7 +875,7 @@ function App() {
         {activeChallenges.length > 0 ? (
           activeChallenges.map((challenge) => {
             const challengeTasks = tasks.filter(
-              (t) => t.challenge_id === challenge.id
+              (t) => t.challenge_id === challenge.id,
             )
             const stats = getCompletionStats(challenge, challengeTasks)
             const isExpanded = expandedChallenges[challenge.id]
@@ -865,11 +891,11 @@ function App() {
               if (isTaskActiveOnDate(task, today)) {
                 todayTarget += task.frequency_count || 1
                 const taskCompletions = completions.filter(
-                  (c) => c.task_id === task.id && c.date === today
+                  (c) => c.task_id === task.id && c.date === today,
                 ).length
                 todayDone += Math.min(
                   taskCompletions,
-                  task.frequency_count || 1
+                  task.frequency_count || 1,
                 )
               }
             })
@@ -915,7 +941,7 @@ function App() {
                             <span
                               className={cn(
                                 daysRemaining <= 3 &&
-                                  "text-task-orange font-medium"
+                                  "text-task-orange font-medium",
                               )}
                             >
                               {daysRemaining}d left
@@ -1030,7 +1056,7 @@ function App() {
 
   // Get currently selected challenge
   const selectedChallenge = activeChallenges.find(
-    (c) => c.id === selectedChallengeId
+    (c) => c.id === selectedChallengeId,
   )
 
   return (
@@ -1188,7 +1214,7 @@ function App() {
             tasks={tasks.filter((t) => t.challenge_id === editingChallenge.id)}
             completionStats={getCompletionStats(
               editingChallenge,
-              tasks.filter((t) => t.challenge_id === editingChallenge.id)
+              tasks.filter((t) => t.challenge_id === editingChallenge.id),
             )}
             onArchive={async () => {
               await archiveChallenge(editingChallenge.id)

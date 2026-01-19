@@ -8,7 +8,7 @@ export const buildSystemPrompt = (
   config,
   context,
   memories = null,
-  userName = null
+  userName = null,
 ) => {
   const companionName = config?.companion_name || "Companion"
 
@@ -128,4 +128,182 @@ Rules:
 - confidence: 0.9+ for explicit statements, 0.6-0.8 for inferences
 - Return empty array if nothing memorable was shared
 - DO NOT include memories that are already in the existing list`
+}
+
+/**
+ * Build a prompt to generate clarifying questions for a goal
+ * Returns JSON with goal type, duration, and 1-3 questions
+ */
+export const buildClarifyingQuestionsPrompt = (goalData) => {
+  const { goal, motivation, concerns } = goalData
+
+  return `You are helping someone clarify their goal before creating an action plan.
+
+## User's Goal
+Goal: "${goal}"
+Motivation: "${motivation}"
+Concerns: "${concerns || "none mentioned"}"
+
+## Your Task
+1. ANALYZE the goal to determine its TYPE and DURATION
+2. CHECK FOR AMBIGUITIES (Crucial for preventing hallucination)
+3. Ask 1-3 CRUCIAL clarifying questions
+
+## Goal Types
+- **habit**: Ongoing daily behavior (wake up at 7am)
+- **deadline**: Time-sensitive goal (finals in 12 days)
+- **achievement**: Milestone goal (run a 5K)
+- **project**: Defined scope (declutter house)
+- **skill**: Ongoing improvement (learn guitar)
+
+## Ambiguity Check (PREVENT HALLUCINATION)
+If the goal is "Study Physics" or "Learn History" but lacks specifics:
+- YOU MUST ASK: "What specific chapters, topics, or syllabus are you covering?"
+- Do NOT assume they are studying Newtonian physics or WW2 unless stated.
+- If they say "Prepare for interview", ASK: "What role or company? Technical or behavioral?"
+
+## Duration Detection
+- "in 12 days" → 12 days
+- "finals next week" → 7 days
+- Default: 28 days
+
+## Output Format
+Return ONLY valid JSON:
+{
+  "goal_type": "habit" | "deadline" | "achievement" | "project" | "skill",
+  "goal_type_reason": "Brief explanation",
+  "suggested_duration_days": 12,
+  "duration_reason": "Finals are in 12 days",
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Do you have a syllabus or specific list of topics to cover?",
+      "placeholder": "e.g., Chapters 1-5, Thermodynamics, Mechanics",
+      "why": "I need specific topics to create a relevant study plan."
+    }
+  ],
+  "skip_reason": null
+}
+
+RETURN QUESTIONS IF THE GOAL IS VAGUE.
+For study goals without topics, QUESTION 1 MUST ASK FOR TOPICS.`
+}
+
+/**
+ * Build a prompt to generate a progressive goal plan
+ * Adapts duration based on goal type and detected timeline
+ */
+export const buildGoalPlanPrompt = (goalData, userContext = "") => {
+  const {
+    goal,
+    motivation,
+    concerns,
+    startDate,
+    clarificationContext,
+    goalType,
+    durationDays,
+  } = goalData
+
+  // Calculate phases based on duration
+  const days = durationDays || 28
+  let numPhases, phaseUnit, phaseNames
+
+  if (days <= 3) {
+    // Very short: phases are half-days or time blocks
+    numPhases = days
+    phaseUnit = "Day"
+    phaseNames = Array.from({ length: days }, (_, i) => `Day ${i + 1}`)
+  } else if (days <= 14) {
+    // Short deadline: phases are days or 2-3 day chunks
+    numPhases = Math.min(days, 7) // Max 7 phases
+    const daysPerPhase = Math.ceil(days / numPhases)
+    phaseUnit = daysPerPhase === 1 ? "Day" : `Days`
+    phaseNames = Array.from({ length: numPhases }, (_, i) => {
+      const startDay = i * daysPerPhase + 1
+      const endDay = Math.min((i + 1) * daysPerPhase, days)
+      return startDay === endDay
+        ? `Day ${startDay}`
+        : `Days ${startDay}-${endDay}`
+    })
+  } else {
+    // Standard: weekly phases
+    numPhases = Math.ceil(days / 7)
+    phaseUnit = "Week"
+    phaseNames = Array.from({ length: numPhases }, (_, i) => `Week ${i + 1}`)
+  }
+
+  // Determine goal framing
+  const isDeadline = goalType === "deadline" || days < 28
+  const isOngoing = goalType === "habit" || goalType === "skill"
+
+  const planTitle = isDeadline
+    ? `${days}-Day Sprint`
+    : goalType === "habit"
+      ? "4-Week Kickstart"
+      : `${numPhases}-Week Plan`
+
+  return `You are generating a ${planTitle} to help someone achieve their goal.
+
+## User's Goal
+I want to: ${goal}
+Because: ${motivation}
+But I worry about: ${concerns || "nothing specific"}
+
+## Goal Type: ${(goalType || "deadline").toUpperCase()}
+${isDeadline ? `This is a TIME-SENSITIVE goal. The plan MUST fit within ${days} days!` : ""}
+${isOngoing ? "After the plan ends, the habit continues indefinitely." : ""}
+
+## User Context
+${userContext || "No additional context provided."}
+
+${clarificationContext ? "## Clarifying Details\n" + clarificationContext : ""}
+
+## Timeline
+- Start date: ${startDate || "Today"}
+- Duration: **${days} days** (${numPhases} phases)
+- Phase structure: ${phaseNames.join(" → ")}
+
+## Output Format
+Return ONLY valid JSON:
+{
+  "plan_title": "${planTitle}: [Goal Summary]",
+  "goal_type": "${goalType || "deadline"}",
+  "duration_days": ${days},
+  "is_ongoing": ${isOngoing},
+  "phases": [
+    {
+      "phase": 1,
+      "name": "${phaseNames[0]}",
+      "tagline": "Phase focus",
+      "tasks": [
+        {
+          "name": "Specific action task",
+          "frequency": "Daily" or "Once",
+          "duration_minutes": 30,
+          "notes": "Short tip"
+        }
+      ]
+    }
+  ],
+  "encouragement": "Motivational message",
+  "after_plan": ${isOngoing ? '"Continue the habit indefinitely"' : "null"}
+}
+
+## CRITICAL RULES
+1. **CREATE EXACTLY ${numPhases} PHASES** matching: ${phaseNames.join(", ")}
+2. **THE MAIN GOAL MUST BE THE PRIMARY TASK** - not supporting activities
+3. For ${days}-day plans:
+   - Front-load important work (don't leave studying to last day!)
+   - Phase 1: 30% of work (setup/foundation)
+   - Middle phases: 50% of work (main effort)
+   - Final phase: 20% of work (review/polish)
+4. Task frequency should fit the timeline:
+   - Short plans (< 7 days): "Daily" or "Once this phase"
+   - Longer plans: "3-4x per week" or "Daily"
+5. Notes should be SHORT (under 40 characters)
+6. **PREVENT HALLUCINATION (Study/Learning Goals):**
+   - IF YOU DON'T KNOW the specific chapters/syllabus:
+   - **DO NOT INVENT** topics (e.g., don't say "Study Newton's Laws" if not mentioned).
+   - **USE PLACEHOLDERS**: "Study Topic 1", "Review Chapter 1", "Practice Problem Set".
+   - **Notes**: "Replace with your specific topic".`
 }

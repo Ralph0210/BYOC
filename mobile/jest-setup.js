@@ -1,24 +1,20 @@
-// Mock Reanimated
-require("react-native-reanimated/mock")
+// Force mock of expo's winter module before anything else
+jest.mock("expo/src/winter/runtime.native", () => ({}), { virtual: true })
+jest.mock("expo/src/winter/installGlobal", () => ({}), { virtual: true })
 
-// Mock QuickCrypto
-jest.mock("react-native-quick-crypto", () => {
-  return {
-    pbkdf2: jest.fn((userId, salt, iterations, keyLength, digest, callback) => {
-      const mockKey = new Uint8Array(32).fill(1)
-      callback(null, mockKey.buffer)
-    }),
-    createDecipheriv: jest.fn(() => ({
-      setAuthTag: jest.fn(),
-      update: jest.fn(() => "decrypted-content"),
-      final: jest.fn(() => ""),
-    })),
-    // Add other methods if needed
-    randomUUID: jest.fn(() => "mock-uuid"),
-  }
-})
+// Mock Reanimated
+jest.mock("react-native-reanimated", () =>
+  require("react-native-reanimated/mock")
+)
 
 // Mock Expo Constants
 jest.mock("expo-constants", () => ({
   manifest: { extra: {} },
+}))
+
+// Mock Expo SecureStore
+jest.mock("expo-secure-store", () => ({
+  getItemAsync: jest.fn(() => Promise.resolve(null)),
+  setItemAsync: jest.fn(() => Promise.resolve()),
+  deleteItemAsync: jest.fn(() => Promise.resolve()),
 }))
