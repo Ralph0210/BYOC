@@ -34,6 +34,7 @@ import { useCompletions } from "./hooks/useCompletions"
 import { useSnoozes } from "./hooks/useSnoozes"
 import { useTheme } from "./hooks/useTheme"
 import { useAuth } from "./hooks/useAuth.jsx"
+import { useGoogleCalendar } from "./hooks/useGoogleCalendar"
 import { LandingPage } from "./components/landing/LandingPage"
 import {
   getToday,
@@ -53,6 +54,8 @@ import {
   ReturnNote,
   EmptyStateNote,
 } from "./components/ai/AmbientNote"
+import { AISortButton } from "./components/ai/AISortButton"
+import { DayPlanner } from "./components/calendar/DayPlanner"
 import { ConversationPanel } from "./components/ai/ConversationPanel"
 import { SettingsPanel } from "./components/settings/SettingsPanel"
 import {
@@ -106,6 +109,7 @@ function App() {
   const [editingChallenge, setEditingChallenge] = useState(null)
   const [editingTask, setEditingTask] = useState(null)
   const [selectedChallengeForTask, setSelectedChallengeForTask] = useState(null)
+  const [progressViewMode, setProgressViewMode] = useState("grid") // "grid" or "day"
 
   // AI State
   const { config } = useAIConfig()
@@ -113,6 +117,7 @@ function App() {
   const [showAISettings, setShowAISettings] = useState(false)
   const [showChat, setShowChat] = useState(false)
   const [chatInitialContext, setChatInitialContext] = useState(null)
+  const [sortedTaskIds, setSortedTaskIds] = useState({}) // Per-challenge sorted task order
 
   const handleOpenChat = (context = null) => {
     setChatInitialContext(context)
@@ -148,6 +153,9 @@ function App() {
 
   const { snoozes, fetchSnoozes, addSnooze, removeSnooze, isTaskSnoozed } =
     useSnoozes()
+
+  // Google Calendar Data
+  const { todayEvents, weekEvents } = useGoogleCalendar()
 
   // Initial data fetch
   useEffect(() => {
@@ -332,36 +340,34 @@ function App() {
 
   // Challenge handlers
   const handleSaveChallenge = async (data, tasksToCreate = null) => {
-    let newChallengeId = null
+    let savedChallenge = null
 
     if (editingChallenge) {
-      await updateChallenge(editingChallenge.id, data)
+      savedChallenge = await updateChallenge(editingChallenge.id, data)
     } else {
-      const newChallenge = await createChallenge(data)
+      savedChallenge = await createChallenge(data)
 
       // If tasks are provided (from goal creation), create them
-      if (tasksToCreate && tasksToCreate.length > 0 && newChallenge) {
-        newChallengeId = newChallenge.id
+      if (tasksToCreate && tasksToCreate.length > 0 && savedChallenge) {
         for (const taskData of tasksToCreate) {
-          await createTask({ ...taskData, challenge_id: newChallenge.id })
+          await createTask({ ...taskData, challenge_id: savedChallenge.id })
         }
       }
+
+      // Auto-select the newly created challenge
+      if (savedChallenge) {
+        setSelectedChallengeId(savedChallenge.id)
+      }
     }
+
     setShowChallengeModal(false)
     setEditingChallenge(null)
 
-    // Fetch challenges first, then tasks
-    await fetchChallenges()
-
-    // Refetch tasks - include the new challenge ID if we just created one
-    const challengeIds = challenges
-      .filter((c) => !c.is_archived)
-      .map((c) => c.id)
-
-    // Add the new challenge ID if it's not in the list yet
-    if (newChallengeId && !challengeIds.includes(newChallengeId)) {
-      challengeIds.push(newChallengeId)
-    }
+    // Parallel fetch: refresh challenges list AND tasks for all active challenges
+    // Important: we need to use the potential new list of challenges
+    const updatedChallenges = await fetchChallenges()
+    const activeChallenges = updatedChallenges.filter((c) => !c.is_archived)
+    const challengeIds = activeChallenges.map((c) => c.id)
 
     if (challengeIds.length > 0) {
       await fetchTasksForChallenges(challengeIds)
@@ -387,11 +393,12 @@ function App() {
     setShowTaskModal(false)
     setEditingTask(null)
     setSelectedChallengeForTask(null)
-    // Refetch tasks
-    const challengeIds = challenges
-      .filter((c) => !c.is_archived)
-      .map((c) => c.id)
-    fetchTasksForChallenges(challengeIds)
+    // Refetch tasks for all active challenges
+    const activeChallenges = challenges.filter((c) => !c.is_archived)
+    const challengeIds = activeChallenges.map((c) => c.id)
+    if (challengeIds.length > 0) {
+      await fetchTasksForChallenges(challengeIds)
+    }
   }
 
   const handleDeleteTask = async (id) => {
@@ -521,36 +528,79 @@ function App() {
             </div>
           )}
 
-          {/* Heatmap Card */}
-          <div className="dashboard-card p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="dashboard-card-icon">
-                <Calendar className="w-4 h-4" />
+          {/* Heatmap/DayPlanner Card */}
+          <div className="dashboard-card p-4 min-h-[400px]">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="dashboard-card-icon">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-semibold text-primary">Progress</h3>
               </div>
-              <h3 className="text-sm font-semibold text-primary">Progress</h3>
+
+              {/* View Toggle */}
+              <div className="flex bg-surface-alt rounded-lg p-0.5 border border-border">
+                <button
+                  onClick={() => setProgressViewMode("grid")}
+                  className={cn(
+                    "p-1.5 rounded-md transition-colors",
+                    progressViewMode === "grid"
+                      ? "bg-white dark:bg-gray-700 text-primary shadow-sm"
+                      : "text-tertiary hover:text-secondary",
+                  )}
+                  title="Month View"
+                >
+                  <Calendar className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setProgressViewMode("day")}
+                  className={cn(
+                    "p-1.5 rounded-md transition-colors",
+                    progressViewMode === "day"
+                      ? "bg-white dark:bg-gray-700 text-primary shadow-sm"
+                      : "text-tertiary hover:text-secondary",
+                  )}
+                  title="Day View"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-            <CalendarGrid
-              tasks={challengeTasks}
-              completions={completions}
-              snoozes={snoozes}
-              startDate={challenge.start_date}
-              endDate={challenge.end_date}
-              selectedDate={selectedDates[challenge.id] || today}
-              onDateClick={(date) => {
-                if (date <= today) {
-                  setSelectedDates((prev) => ({
-                    ...prev,
-                    [challenge.id]: date,
-                  }))
+
+            {progressViewMode === "grid" ? (
+              <CalendarGrid
+                tasks={challengeTasks}
+                completions={completions}
+                snoozes={snoozes}
+                startDate={challenge.start_date}
+                endDate={challenge.end_date}
+                selectedDate={selectedDates[challenge.id] || today}
+                onDateClick={(date) => {
+                  if (date <= today) {
+                    setSelectedDates((prev) => ({
+                      ...prev,
+                      [challenge.id]: date,
+                    }))
+                    // Auto-switch to day view on click if desired? No, stay on grid for navigation
+                  }
+                }}
+                weeksToShow={
+                  Math.ceil(
+                    daysDiff(challenge.start_date, challenge.end_date) / 7,
+                  ) + 1
                 }
-              }}
-              weeksToShow={
-                Math.ceil(
-                  daysDiff(challenge.start_date, challenge.end_date) / 7,
-                ) + 1
-              }
-              minWeeks={20}
-            />
+                minWeeks={20}
+              />
+            ) : (
+              <DayPlanner
+                date={selectedDates[challenge.id] || today}
+                tasks={challengeTasks.filter((t) =>
+                  isTaskActiveOnDate(t, selectedDates[challenge.id] || today),
+                )}
+                events={[...todayEvents, ...weekEvents]}
+                onEditTask={handleEditTask}
+              />
+            )}
           </div>
         </div>
 
@@ -569,6 +619,19 @@ function App() {
                 {todayTarget > 0 && (
                   <span className="done-badge">{todayDone} done</span>
                 )}
+                <AISortButton
+                  tasks={challengeTasks.filter((t) =>
+                    isTaskActiveOnDate(t, selectedDates[challenge.id] || today),
+                  )}
+                  onUpdateTask={updateTask}
+                  onSort={(sortedTasks) => {
+                    // Store the sorted order for this challenge
+                    setSortedTaskIds((prev) => ({
+                      ...prev,
+                      [challenge.id]: sortedTasks.map((t) => t.id),
+                    }))
+                  }}
+                />
                 <Button
                   size="xs"
                   variant="ghost"
@@ -583,9 +646,22 @@ function App() {
             {/* Task List */}
             {(() => {
               const selectedDate = selectedDates[challenge.id] || today
-              const dateTasks = challengeTasks.filter((t) =>
+              let dateTasks = challengeTasks.filter((t) =>
                 isTaskActiveOnDate(t, selectedDate),
               )
+
+              // Apply AI sorting if available
+              const sortOrder = sortedTaskIds[challenge.id]
+              if (sortOrder && sortOrder.length > 0) {
+                dateTasks = [...dateTasks].sort((a, b) => {
+                  const aIdx = sortOrder.indexOf(a.id)
+                  const bIdx = sortOrder.indexOf(b.id)
+                  if (aIdx === -1) return 1
+                  if (bIdx === -1) return -1
+                  return aIdx - bIdx
+                })
+              }
+
               const isFutureDate = selectedDate > today
 
               return dateTasks.length > 0 ? (

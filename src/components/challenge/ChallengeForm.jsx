@@ -122,7 +122,7 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
     if (generatedPlan) {
       // Pre-select all tasks
       const allTaskIds = generatedPlan.phases.flatMap((phase) =>
-        phase.tasks.map((task) => `${phase.week}-${task.name}`),
+        phase.tasks.map((task) => task.id),
       )
       setSelectedTasks(allTaskIds)
     }
@@ -140,7 +140,7 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
     if (!plan) return
     const weekPhase = plan.phases.find((p) => p.week === weekNumber)
     if (!weekPhase) return
-    const weekTaskIds = weekPhase.tasks.map((t) => `${weekNumber}-${t.name}`)
+    const weekTaskIds = weekPhase.tasks.map((t) => t.id)
     setSelectedTasks((prev) => [...new Set([...prev, ...weekTaskIds])])
   }
 
@@ -148,7 +148,7 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
     if (!plan) return
     const weekPhase = plan.phases.find((p) => p.week === weekNumber)
     if (!weekPhase) return
-    const weekTaskIds = weekPhase.tasks.map((t) => `${weekNumber}-${t.name}`)
+    const weekTaskIds = weekPhase.tasks.map((t) => t.id)
     setSelectedTasks((prev) => prev.filter((id) => !weekTaskIds.includes(id)))
   }
 
@@ -164,7 +164,7 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
       const newPlan = await generatePlan(augmentedGoalData)
       if (newPlan) {
         const allTaskIds = newPlan.phases.flatMap((phase) =>
-          phase.tasks.map((task) => `${phase.week}-${task.name}`),
+          phase.tasks.map((task) => task.id),
         )
         setSelectedTasks(allTaskIds)
       }
@@ -190,14 +190,16 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
     plan.phases.forEach((phase) => {
       const phaseKey = phase.week || phase.phase // Support both week and phase keys
       phase.tasks.forEach((task) => {
-        const taskId = `${phaseKey}-${task.name}`
+        const taskId = task.id
         if (selectedTasks.includes(taskId)) {
           // Parse frequency from AI response
           const frequencyType = parseFrequencyType(task.frequency)
 
           tasksToCreate.push({
             name: task.name,
-            note: task.notes || "",
+            description: task.notes || "", // terminology fix: note -> description
+            subtasks: task.subtasks || [], // Pass subtasks to creation handler
+            scheduled_time: task.scheduled_time || null, // AI suggested time
             frequency_type: frequencyType.type,
             frequency_days: frequencyType.days,
             frequency_count: frequencyType.count,
@@ -219,7 +221,7 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
     onSubmit(
       {
         name: challengeName,
-        description: `Goal: ${goalData.goal}\nMotivation: ${goalData.motivation}${goalData.concerns ? `\nConcerns: ${goalData.concerns}` : ""}`,
+        description: `Goal: ${goalData.goal}${goalData.clarificationContext ? `\n\nDetails:\n${goalData.clarificationContext}` : ""}`,
         start_date: startDate,
         end_date: endDate,
         duration_days: durationDays,
@@ -246,15 +248,18 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
 
     // Specific days patterns (Mon, Wed, Fri etc)
     const dayMap = {
-      mon: "mon",
-      tue: "tue",
-      wed: "wed",
-      thu: "thu",
-      fri: "fri",
-      sat: "sat",
-      sun: "sun",
+      sun: 0,
+      mon: 1,
+      tue: 2,
+      wed: 3,
+      thu: 4,
+      fri: 5,
+      sat: 6,
     }
-    const foundDays = Object.keys(dayMap).filter((d) => text.includes(d))
+    const foundDays = Object.keys(dayMap)
+      .filter((d) => text.includes(d))
+      .map((d) => dayMap[d])
+
     if (foundDays.length > 0) {
       return { type: "specific_days", days: foundDays, count: 1 }
     }
@@ -263,16 +268,16 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
     const timesMatch = text.match(/(\d+)x?\s*(per|a|\/)\s*week/i)
     if (timesMatch) {
       const count = parseInt(timesMatch[1])
-      return { type: "per_week", days: [], count }
+      return { type: "weekly", days: [], count }
     }
 
     // Once patterns
     if (text.includes("once") || text.includes("1x")) {
-      return { type: "per_week", days: [], count: 1 }
+      return { type: "weekly", days: [], count: 1 }
     }
 
     // Default to flexible/weekly
-    return { type: "per_week", days: [], count: 3 }
+    return { type: "weekly", days: [], count: 3 }
   }
 
   const handleBackFromPlan = () => {
@@ -303,7 +308,7 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
             // Remove from selected if it was selected
             const phase = plan.phases.find((p) => p.week === week)
             if (phase && phase.tasks[index]) {
-              const taskId = `${week}-${phase.tasks[index].name}`
+              const taskId = phase.tasks[index].id
               setSelectedTasks((prev) => prev.filter((id) => id !== taskId))
             }
           }}

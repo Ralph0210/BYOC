@@ -153,7 +153,7 @@ export async function callAI(messages, config, options = {}) {
 
   // Set max tokens based on context type
   // Goal plans need more tokens for full 4-week plan
-  const maxTokens = contextType.startsWith("goal_plan") ? 2000 : 500
+  const maxTokens = contextType.startsWith("goal_plan") ? 6000 : 500
 
   const provider = getProviderById(config.provider)
   const modelToUse = config.model

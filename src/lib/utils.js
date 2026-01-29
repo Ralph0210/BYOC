@@ -140,15 +140,23 @@ export function getDayOfWeek(date) {
  */
 export function isTaskActiveOnDate(task, date) {
   const dayOfWeek = getDayOfWeek(date)
+  const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
+  const dayName = dayNames[dayOfWeek]
+
+  const hasDayMatch =
+    task.frequency_days?.includes(dayOfWeek) ||
+    task.frequency_days?.includes(dayName)
 
   switch (task.frequency_type) {
     case "daily":
       return true
     case "weekly":
-      // For weekly tasks, check if it's the preferred day or any day if not set
-      return task.frequency_days?.includes(dayOfWeek) ?? true
+    case "per_week":
+      // If no specific days selected, it's a flexible task (active every day)
+      if (!task.frequency_days || task.frequency_days.length === 0) return true
+      return hasDayMatch
     case "specific_days":
-      return task.frequency_days?.includes(dayOfWeek) ?? false
+      return hasDayMatch
     default:
       return true
   }

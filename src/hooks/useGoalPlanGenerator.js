@@ -4,7 +4,10 @@ import {
   buildGoalPlanPrompt,
   buildClarifyingQuestionsPrompt,
 } from "../lib/ai/prompts"
+import { buildCalendarContext } from "../lib/ai/calendarContext"
 import { useAIConfig } from "./useAIConfig"
+import { useCapacityEngine } from "./useCapacityEngine"
+import goalTypesSchema from "../lib/ai/goalTypes.json"
 
 /**
  * Hook for generating and managing AI goal plans
@@ -23,7 +26,7 @@ export function useGoalPlanGenerator() {
    * Generate clarifying questions based on user's goal
    */
   const generateClarifyingQuestions = useCallback(
-    async (goalData) => {
+    async (goalData, previousAnswers = []) => {
       if (!config?.api_key) {
         setError("Please configure your AI settings first")
         return null
@@ -34,14 +37,20 @@ export function useGoalPlanGenerator() {
       setClarifyingQuestions(null)
 
       try {
-        const systemPrompt = buildClarifyingQuestionsPrompt(goalData)
-
+        const goalText = typeof goalData === "string" ? goalData : goalData.goal
         const messages = [
-          { role: "system", content: systemPrompt },
+          {
+            role: "system",
+            content: buildClarifyingQuestionsPrompt(
+              goalText,
+              goalTypesSchema,
+              previousAnswers,
+            ),
+          },
           {
             role: "user",
             content:
-              "Analyze my goal and generate clarifying questions if needed.",
+              "Analyze my goal based on the schema and extract information or ask questions.",
           },
         ]
 
@@ -85,8 +94,14 @@ export function useGoalPlanGenerator() {
   /**
    * Generate a complete 4-week plan from goal data
    */
+  // Import capacity engine (assuming it's a hook we can use at top level)
+  const { calculateDailyLoad } = useCapacityEngine()
+
+  /**
+   * Generate a complete 4-week plan from goal data
+   */
   const generatePlan = useCallback(
-    async (goalData) => {
+    async (goalData, existingTasks = []) => {
       if (!config?.api_key) {
         setError("Please configure your AI settings first")
         return null
@@ -100,7 +115,39 @@ export function useGoalPlanGenerator() {
         // Build user context from config
         const userContext = config.user_details || ""
 
-        const systemPrompt = buildGoalPlanPrompt(goalData, userContext)
+        // Build calendar context for smarter scheduling
+        const calendarContext = await buildCalendarContext([])
+
+        // Build Multi-Goal / Capacity Context
+        // We calculate load for the next 4 weeks (approximate)
+        // Since we don't know the exact range, we can just dump the next 30 days of load if relevant
+        const today = new Date()
+        const loadContextLines = []
+
+        // Check next 28 days
+        for (let i = 0; i < 28; i++) {
+          const d = new Date(today)
+          d.setDate(today.getDate() + i)
+          const dateStr = d.toISOString().split("T")[0]
+          const load = calculateDailyLoad(existingTasks, d)
+
+          if (load.isFull || load.status === "Heavy") {
+            loadContextLines.push(
+              `${dateStr} (${d.toLocaleDateString("en-US", { weekday: "short" })}): ${load.status.toUpperCase()} (${load.breakdown.big} Big, ${load.breakdown.medium} Med, ${load.breakdown.small} Small)`,
+            )
+          }
+        }
+
+        const capacityContext =
+          loadContextLines.length > 0
+            ? `\n## Existing Commitments (Busy Days)\n${loadContextLines.join("\n")}\n\nINSTRUCTION: Avoid scheduling Heavy/Big tasks on these 'FULL' or 'HEAVY' days if possible. Defer to lighter days.`
+            : ""
+
+        const systemPrompt = buildGoalPlanPrompt(
+          goalData,
+          userContext,
+          calendarContext + capacityContext, // Append capacity to calendar context
+        )
 
         const messages = [
           { role: "system", content: systemPrompt },
@@ -179,6 +226,16 @@ export function useGoalPlanGenerator() {
           throw new Error("Invalid plan structure - missing phases array")
         }
 
+        // Assign IDs to phases and tasks for stable keys
+        generatedPlan.phases = generatedPlan.phases.map((phase) => ({
+          ...phase,
+          id: phase.id || crypto.randomUUID(),
+          tasks: phase.tasks.map((task) => ({
+            ...task,
+            id: task.id || crypto.randomUUID(), // Stable ID
+          })),
+        }))
+
         setPlan(generatedPlan)
         return generatedPlan
       } catch (err) {
@@ -189,14 +246,21 @@ export function useGoalPlanGenerator() {
         setLoading(false)
       }
     },
-    [config],
+    [config, calculateDailyLoad],
   )
 
   /**
    * Regenerate a specific week's tasks
    */
+  /**
+   * Regenerate a specific week's tasks
+   * @param {number} weekNumber
+   * @param {object} goalData
+   * @param {string} userPrompt
+   * @param {array} protectedTasks - Tasks that should be preserved (e.g. completed ones)
+   */
   const regenerateWeek = useCallback(
-    async (weekNumber, goalData, userPrompt = "") => {
+    async (weekNumber, goalData, userPrompt = "", protectedTasks = []) => {
       if (!config?.api_key || !plan) {
         return null
       }
@@ -206,13 +270,30 @@ export function useGoalPlanGenerator() {
 
       try {
         const userContext = config.user_details || ""
-        const basePrompt = buildGoalPlanPrompt(goalData, userContext)
+        // For partial regeneration, we might skip calendar context or re-fetch it
+        // Re-fetching ensures up-to-date availability for the new week tasks
+        const calendarContext = await buildCalendarContext([])
+
+        const basePrompt = buildGoalPlanPrompt(
+          goalData,
+          userContext,
+          calendarContext,
+        )
+
+        // Format protected tasks for the prompt
+        const protectedContext =
+          protectedTasks.length > 0
+            ? `\nPRESERVED TASKS (DO NOT GENERATE THESE):
+${protectedTasks.map((t) => `- "${t.name}" (${t.frequency || "Once"})`).join("\n")}
+INSTRUCTION: The user has already done/committed to the above. Generate the COMPLEMENTARY tasks to finish the week's goal.`
+            : ""
 
         const weekPrompt = `${basePrompt}
 
 SPECIAL INSTRUCTION: Only regenerate Week ${weekNumber}. The other weeks are already set.
 Current Week ${weekNumber} phase name: "${plan.phases.find((p) => p.week === weekNumber)?.name || "Unknown"}"
 ${userPrompt ? `\nUSER FEEDBACK: ${userPrompt}` : ""}
+${protectedContext}
 
 Return ONLY the single week object, not the full plan:
 {
@@ -228,7 +309,7 @@ Return ONLY the single week object, not the full plan:
             role: "user",
             content: userPrompt
               ? `Regenerate week ${weekNumber} with these changes: ${userPrompt}`
-              : `Regenerate week ${weekNumber} with fresh tasks.`,
+              : `Regenerate week ${weekNumber} with fresh tasks.${protectedTasks.length ? " (Respect preserved tasks)" : ""}`,
           },
         ]
 
@@ -247,12 +328,29 @@ Return ONLY the single week object, not the full plan:
 
         const newWeek = JSON.parse(jsonMatch[0])
 
+        // Assign IDs to new tasks
+        if (newWeek.tasks) {
+          newWeek.tasks = newWeek.tasks.map((t) => ({
+            ...t,
+            id: t.id || crypto.randomUUID(),
+          }))
+        }
+
+        // MERGE LOGIC: Combine protected tasks + new AI tasks
+        // We put protected tasks FIRST (or should we respect order? simple append is safest for now)
+        const mergedTasks = [...protectedTasks, ...(newWeek.tasks || [])]
+
         // Update plan with new week
         const updatedPlan = {
           ...plan,
           phases: plan.phases.map((phase) =>
             phase.week === weekNumber
-              ? { ...newWeek, week: weekNumber }
+              ? {
+                  ...newWeek,
+                  week: weekNumber,
+                  id: phase.id,
+                  tasks: mergedTasks,
+                } // Preserve phase ID, use merged tasks
               : phase,
           ),
         }
@@ -331,7 +429,7 @@ Return ONLY the single week object, not the full plan:
           if (phase.week !== weekNumber) return phase
           return {
             ...phase,
-            tasks: [...phase.tasks, task],
+            tasks: [...phase.tasks, { ...task, id: crypto.randomUUID() }],
           }
         }),
       }

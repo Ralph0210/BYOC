@@ -43,7 +43,7 @@ export function useChallenges() {
               (await decryptData(challenge.reward_text, user.id)) ||
               challenge.reward_text,
           }
-        })
+        }),
       )
 
       setChallenges(decryptedChallenges)
@@ -90,8 +90,16 @@ export function useChallenges() {
 
       if (createError) throw createError
 
-      setChallenges((prev) => [data, ...prev])
-      return data
+      // Return local decrypted object so UI can use it immediately without flash
+      const decryptedNewChallenge = {
+        ...data,
+        name: challengeData.name,
+        description: challengeData.description,
+        reward_text: challengeData.reward_text,
+      }
+
+      setChallenges((prev) => [decryptedNewChallenge, ...prev])
+      return decryptedNewChallenge
     } catch (err) {
       setError(err.message)
       return null
@@ -119,13 +127,13 @@ export function useChallenges() {
       if (updates.description) {
         encryptedUpdates.description = await encryptData(
           updates.description,
-          user.id
+          user.id,
         )
       }
       if (updates.reward_text) {
         encryptedUpdates.reward_text = await encryptData(
           updates.reward_text,
-          user.id
+          user.id,
         )
       }
 
@@ -149,7 +157,7 @@ export function useChallenges() {
       }
 
       setChallenges((prev) =>
-        prev.map((c) => (c.id === id ? decryptedData : c))
+        prev.map((c) => (c.id === id ? decryptedData : c)),
       )
       return decryptedData
     } catch (err) {
@@ -181,7 +189,7 @@ export function useChallenges() {
     async (id) => {
       return updateChallenge(id, { is_archived: true })
     },
-    [updateChallenge]
+    [updateChallenge],
   )
 
   const extendChallenge = useCallback(
@@ -197,7 +205,7 @@ export function useChallenges() {
         duration_days: (challenge.duration_days || 0) + additionalDays,
       })
     },
-    [challenges, updateChallenge]
+    [challenges, updateChallenge],
   )
 
   return {

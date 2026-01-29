@@ -1,0 +1,225 @@
+{
+  "goal_types": {
+    "learning_studying": {
+      "description": "Studying, learning, exam preparation",
+      "slots": {
+        "subject": {
+          "type": "string",
+          "required": true,
+          "ask_if_missing": false,
+          "can_assume": false
+        },
+        "deadline": {
+          "type": "string",
+          "required": true,
+          "ask_if_missing": true,
+          "can_assume": false
+        },
+        "scope": {
+          "type": "string",
+          "required": true,
+          "ask_if_missing": true,
+          "can_assume": false
+        },
+        "current_level": {
+          "type": "string",
+          "required": false,
+          "ask_if_missing": false,
+          "can_assume": true
+        },
+        "weak_areas": {
+          "type": "string",
+          "required": false,
+          "ask_if_missing": false,
+          "can_assume": true
+        },
+        "daily_time": {
+          "type": "string",
+          "required": true,
+          "ask_if_missing": true,
+          "can_assume": true
+        },
+        "study_format": {
+          "type": "string",
+          "required": false,
+          "ask_if_missing": false,
+          "can_assume": true
+        }
+      }
+    },
+
+    "deadline_outcome": {
+      "description": "Projects, launches, presentations",
+      "slots": {
+        "deliverable": {
+          "type": "string",
+          "required": true,
+          "ask_if_missing": false,
+          "can_assume": false
+        },
+        "deadline": {
+          "type": "string",
+          "required": true,
+          "ask_if_missing": true,
+          "can_assume": false
+        },
+        "scope": {
+          "type": "string",
+          "required": false,
+          "ask_if_missing": false,
+          "can_assume": true
+        },
+        "dependencies": {
+          "type": "string",
+          "required": false,
+          "ask_if_missing": false,
+          "can_assume": true
+        },
+        "time_budget": {
+          "type": "string",
+          "required": false,
+          "ask_if_missing": false,
+          "can_assume": true
+        }
+      }
+    },
+
+    "habit_routine": {
+      "description": "Daily or recurring habits",
+      "slots": {
+        "habit_action": {
+          "type": "string",
+          "required": true,
+          "ask_if_missing": false,
+          "can_assume": false
+        },
+        "frequency": {
+          "type": "string",
+          "required": true,
+          "ask_if_missing": false,
+          "can_assume": true
+        },
+        "time_of_day": {
+          "type": "string",
+          "required": true,
+          "ask_if_missing": true,
+          "can_assume": false
+        },
+        "context_trigger": {
+          "type": "string",
+          "required": false,
+          "ask_if_missing": false,
+          "can_assume": true
+        },
+        "friction_points": {
+          "type": "string",
+          "required": false,
+          "ask_if_missing": false,
+          "can_assume": true
+        },
+        "minimum_version": {
+          "type": "string",
+          "required": false,
+          "ask_if_missing": false,
+          "can_assume": true
+        }
+      }
+    },
+
+    "health_fitness": {
+      "description": "Exercise, physical health",
+      "slots": {
+        "goal_outcome": {
+          "type": "string",
+          "required": true,
+          "ask_if_missing": false,
+          "can_assume": false
+        },
+        "frequency": {
+          "type": "string",
+          "required": true,
+          "ask_if_missing": false,
+          "can_assume": true
+        },
+        "constraints": {
+          "type": "string",
+          "required": true,
+          "ask_if_missing": true,
+          "can_assume": false
+        },
+        "experience_level": {
+          "type": "string",
+          "required": false,
+          "ask_if_missing": false,
+          "can_assume": true
+        },
+        "time_per_session": {
+          "type": "string",
+          "required": false,
+          "ask_if_missing": false,
+          "can_assume": true
+        }
+      }
+    },
+
+    "personal_growth": {
+      "description": "Mental health, identity, self-improvement",
+      "slots": {
+        "focus_area": {
+          "type": "string",
+          "required": true,
+          "ask_if_missing": false,
+          "can_assume": false
+        },
+        "motivation": {
+          "type": "string",
+          "required": true,
+          "ask_if_missing": true,
+          "can_assume": false
+        },
+        "past_attempts": {
+          "type": "string",
+          "required": false,
+          "ask_if_missing": false,
+          "can_assume": true
+        },
+        "signals_of_progress": {
+          "type": "string",
+          "required": false,
+          "ask_if_missing": false,
+          "can_assume": true
+        }
+      }
+    },
+
+    "work_productivity": {
+      "description": "Work execution and focus",
+      "slots": {
+        "work_context": {
+          "type": "string",
+          "required": true,
+          "ask_if_missing": false,
+          "can_assume": false
+        },
+        "objective": {
+          "type": "string",
+          "required": false,
+          "ask_if_missing": false,
+          "can_assume": true
+        },
+        "time_horizon": {
+          "type": "string",
+          "required": false,
+          "ask_if_missing": false,
+          "can_assume": true
+        },
+        "blockers": {
+          "type": "string",
+          "required": false,
+          "ask_if_missing": false,
+          "can_assume": true
+        }
+      }
+    }
+  }
+}

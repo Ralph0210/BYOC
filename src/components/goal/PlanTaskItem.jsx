@@ -66,6 +66,23 @@ export function PlanTaskItem({
             </p>
           </details>
         )}
+
+        {/* Subtasks Preview */}
+        {task.subtasks && task.subtasks.length > 0 && (
+          <div className="mt-2 pl-2 border-l-2 border-primary-500/20">
+            <p className="text-[10px] uppercase tracking-wider text-tertiary mb-1">
+              Checklist
+            </p>
+            <div className="space-y-1">
+              {task.subtasks.map((st, i) => (
+                <div key={i} className="flex items-start gap-1.5">
+                  <div className="w-3 h-3 rounded-full border border-gray-300 dark:border-gray-600 flex-shrink-0 mt-0.5" />
+                  <span className="text-xs text-secondary">{st.title}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Actions (visible on hover) */}

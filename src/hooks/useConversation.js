@@ -8,6 +8,7 @@ import {
   buildSystemPrompt,
   buildMemoryExtractionPrompt,
 } from "../lib/ai/prompts"
+import { buildCalendarContext } from "../lib/ai/calendarContext"
 
 // In-memory cache for session persistence (survives component unmounts)
 const sessionCache = new Map()
@@ -75,7 +76,7 @@ export function useConversation(activeContexts = []) {
         messages: newMessages,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "user_id,challenge_id" }
+      { onConflict: "user_id,challenge_id" },
     )
 
     if (error) {
@@ -103,7 +104,7 @@ export function useConversation(activeContexts = []) {
             },
           ],
           { ...config, model: config.model || "gpt-4o-mini" },
-          { contextType: "memory" }
+          { contextType: "memory" },
         ) // Use cheaper model
 
         if (response) {
@@ -129,7 +130,7 @@ export function useConversation(activeContexts = []) {
         console.warn("Memory extraction failed:", err)
       }
     },
-    [config, memories, addMemories]
+    [config, memories, addMemories],
   )
 
   const sendMessage = useCallback(
@@ -152,12 +153,26 @@ export function useConversation(activeContexts = []) {
           user?.user_metadata?.full_name?.split(" ")[0] ||
           user?.email?.split("@")[0]
 
+        // Fetch calendar context with pending tasks for prioritization
+        let calendarContext = null
+        try {
+          // Extract pending tasks from active contexts for prioritization
+          const pendingTasks = activeContexts
+            .filter((c) => c.type === "challenge" && c.tasks?.length > 0)
+            .flatMap((c) => c.tasks.filter((t) => !t.isCompleted))
+
+          calendarContext = await buildCalendarContext(pendingTasks)
+        } catch (err) {
+          console.warn("Calendar context unavailable:", err)
+        }
+
         // Pass the ACTIVE CONTEXTS array directly to buildSystemPrompt
         const systemPrompt = buildSystemPrompt(
           config,
           activeContexts,
           memoriesContext,
-          userName
+          userName,
+          calendarContext,
         )
 
         // Construct message history for API
@@ -202,7 +217,7 @@ export function useConversation(activeContexts = []) {
       getMemoriesForContext,
       extractMemories,
       saveHistory,
-    ]
+    ],
   )
 
   const clearConversation = useCallback(async () => {

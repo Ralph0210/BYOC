@@ -2,13 +2,14 @@ import { PERSONALITY_PRESETS } from "./personalities"
 
 /**
  * Build the system prompt for AI interactions
- * Includes personality, custom instructions, context, and long-term memories
+ * Includes personality, custom instructions, context, long-term memories, and calendar context
  */
 export const buildSystemPrompt = (
   config,
   context,
   memories = null,
   userName = null,
+  calendarContext = null,
 ) => {
   const companionName = config?.companion_name || "Companion"
 
@@ -53,6 +54,24 @@ STRICT RULES:
     ? `\n\nUSER'S CUSTOM INSTRUCTIONS (follow these closely):\n${config.custom_instructions}`
     : ""
 
+  // Include calendar context if available
+  const calendarPrompt = calendarContext
+    ? `\n\n${calendarContext}
+
+TASK PRIORITIZATION SKILLS:
+When the user asks what to do first, which task to prioritize, or seems unsure where to start:
+1. Look at their calendar free windows and match tasks to available time
+2. Prioritize by: urgency (daily tasks > weekly), time sensitivity (scheduled times), and duration fit
+3. On busy days: suggest shorter tasks for small gaps, longer tasks for big windows
+4. On light days: suggest tackling harder/longer tasks first while energy is high
+5. Consider time of day: morning = focused work, afternoon = routine tasks, evening = wind-down habits
+
+When giving prioritization advice:
+- Be specific: "Start with X at Y time, then Z"
+- Explain briefly why (fits your 30-min window before the meeting)
+- Keep it actionable, not overwhelming (suggest 2-3 tasks max at once)`
+    : ""
+
   // Format context - handle missing data gracefully
   let contextPrompt = ""
   if (Array.isArray(context) && context.length > 0) {
@@ -93,7 +112,7 @@ STRICT RULES:
     }
   }
 
-  return `${basePrompt}${personalityPrompt}${memoriesPrompt}${customInstructions}${contextPrompt}`
+  return `${basePrompt}${personalityPrompt}${memoriesPrompt}${customInstructions}${calendarPrompt}${contextPrompt}`
 }
 
 /**
@@ -132,77 +151,84 @@ Rules:
 
 /**
  * Build a prompt to generate clarifying questions for a goal
- * Returns JSON with goal type, duration, and 1-3 questions
+ * Now uses the discovery-driven flow based on goalTypes schema
  */
-export const buildClarifyingQuestionsPrompt = (goalData) => {
-  const { goal, motivation, concerns } = goalData
+export const buildClarifyingQuestionsPrompt = (
+  goal,
+  goalTypesSchema,
+  previousAnswers = [],
+) => {
+  const contextStr = previousAnswers.length
+    ? `\n## Previous Q&A Structure
+${previousAnswers.map((qa) => `Q: ${qa.question}\nA: ${qa.answer}`).join("\n")}`
+    : ""
 
   return `You are helping someone clarify their goal before creating an action plan.
 
-## User's Goal
-Goal: "${goal}"
-Motivation: "${motivation}"
-Concerns: "${concerns || "none mentioned"}"
+## User's Goal Input
+"${goal}"${contextStr}
 
 ## Your Task
-1. ANALYZE the goal to determine its TYPE and DURATION
-2. CHECK FOR AMBIGUITIES (Crucial for preventing hallucination)
-3. Ask 1-3 CRUCIAL clarifying questions
+1. **CLASSIFY** the goal into one of these types: ${Object.keys(goalTypesSchema.goal_types).join(", ")}
+2. **EXTRACT** information from the user's input that matches the "slots" defined for that goal type.
+3. **IDENTIFY GAPS**: Check which "required" slots are missing.
+4. **DETECT CLARITY**: If important slots are missing, ask 1-3 CRUCIAL clarifying questions.
 
-## Goal Types
-- **habit**: Ongoing daily behavior (wake up at 7am)
-- **deadline**: Time-sensitive goal (finals in 12 days)
-- **achievement**: Milestone goal (run a 5K)
-- **project**: Defined scope (declutter house)
-- **skill**: Ongoing improvement (learn guitar)
+## Goal Types Schema
+${JSON.stringify(goalTypesSchema, null, 2)}
 
-## Ambiguity Check (PREVENT HALLUCINATION)
-If the goal is "Study Physics" or "Learn History" but lacks specifics:
-- YOU MUST ASK: "What specific chapters, topics, or syllabus are you covering?"
-- Do NOT assume they are studying Newtonian physics or WW2 unless stated.
-- If they say "Prepare for interview", ASK: "What role or company? Technical or behavioral?"
-
-## Duration Detection
-- "in 12 days" → 12 days
-- "finals next week" → 7 days
-- Default: 28 days
+## Rules for Questions
+- If the user provided enough info to fill the "required" slots, you can skip questions.
+${previousAnswers.length ? "- **Refinement Mode**: The user has answered basics. Now ask 1-3 DEEPER questions about preferences, style, or specific constraints to avoid assumptions." : '- If the goal is vague (e.g., "Study Physics"), ALWAYS ask for the specific "scope" or "subject" details.'}
+- Be supportive and curious, not clinical.
+- Return ONLY valid JSON.
 
 ## Output Format
-Return ONLY valid JSON:
 {
-  "goal_type": "habit" | "deadline" | "achievement" | "project" | "skill",
-  "goal_type_reason": "Brief explanation",
-  "suggested_duration_days": 12,
-  "duration_reason": "Finals are in 12 days",
+  "goal_type": "learning_studying",
+  "goal_type_reason": "Explanation of classification",
+  "extracted_slots": {
+    "subject": "Physics",
+    "deadline": null
+  },
+  "missing_required_slots": ["deadline", "scope", "daily_time"],
   "questions": [
     {
-      "id": "q1",
-      "question": "Do you have a syllabus or specific list of topics to cover?",
-      "placeholder": "e.g., Chapters 1-5, Thermodynamics, Mechanics",
-      "why": "I need specific topics to create a relevant study plan."
+      "id": "deadline",
+      "question": "When is your exam or deadline for this?",
+      "placeholder": "e.g., March 15th, or in 2 weeks",
+      "why": "I need to know how much time we have to prepare."
     }
   ],
+  "suggested_duration_days": 28,
+  "user_specified_duration_days": null, // If user explicitly said "in 2 weeks", set to 14
   "skip_reason": null
-}
-
-RETURN QUESTIONS IF THE GOAL IS VAGUE.
-For study goals without topics, QUESTION 1 MUST ASK FOR TOPICS.`
+}`
 }
 
 /**
  * Build a prompt to generate a progressive goal plan
  * Adapts duration based on goal type and detected timeline
  */
-export const buildGoalPlanPrompt = (goalData, userContext = "") => {
+export const buildGoalPlanPrompt = (
+  goalData,
+  userContext = "",
+  calendarContext = "",
+) => {
   const {
     goal,
-    motivation,
-    concerns,
     startDate,
     clarificationContext,
     goalType,
     durationDays,
+    extractedSlots = {},
   } = goalData
+
+  // Include extracted slots in the context
+  const extractedContext = Object.entries(extractedSlots)
+    .filter(([_, v]) => v !== null && v !== undefined)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join("\n")
 
   // Calculate phases based on duration
   const days = durationDays || 28
@@ -239,15 +265,14 @@ export const buildGoalPlanPrompt = (goalData, userContext = "") => {
   const planTitle = isDeadline
     ? `${days}-Day Sprint`
     : goalType === "habit"
-      ? "4-Week Kickstart"
+      ? `${numPhases}-Week Kickstart`
       : `${numPhases}-Week Plan`
 
   return `You are generating a ${planTitle} to help someone achieve their goal.
 
 ## User's Goal
 I want to: ${goal}
-Because: ${motivation}
-But I worry about: ${concerns || "nothing specific"}
+${extractedContext ? `\nEXTRA INFO:\n${extractedContext}` : ""}
 
 ## Goal Type: ${(goalType || "deadline").toUpperCase()}
 ${isDeadline ? `This is a TIME-SENSITIVE goal. The plan MUST fit within ${days} days!` : ""}
@@ -255,6 +280,7 @@ ${isOngoing ? "After the plan ends, the habit continues indefinitely." : ""}
 
 ## User Context
 ${userContext || "No additional context provided."}
+${calendarContext ? `\n## Calendar Context (Use this for scheduling)\n${calendarContext}` : ""}
 
 ${clarificationContext ? "## Clarifying Details\n" + clarificationContext : ""}
 
@@ -280,7 +306,8 @@ Return ONLY valid JSON:
           "name": "Specific action task",
           "frequency": "Daily" or "Once",
           "duration_minutes": 30,
-          "notes": "Short tip"
+          "notes": "Short tip",
+          "scheduled_time": "09:00" // Optional: suggested start time (HH:MM) based on calendar/habits
         }
       ]
     }
@@ -300,8 +327,23 @@ Return ONLY valid JSON:
 4. Task frequency should fit the timeline:
    - Short plans (< 7 days): "Daily" or "Once this phase"
    - Longer plans: "3-4x per week" or "Daily"
-5. Notes should be SHORT (under 40 characters)
-6. **PREVENT HALLUCINATION (Study/Learning Goals):**
+5. Notes should be DETAILED and ACTIONABLE (explain "how" or "why", 1-2 sentences).
+6. **SCHEDULE INTELLIGENTLY**:
+   - **MANDATORY**: SUGGEST A TIME (\`scheduled_time\`) for every task that needs a specific slot.
+   - Look at the **Calendar Context**. If they have a meeting at 10am, suggest 11am or 9am.
+   - **Load Balancing**: If "Existing Commitments" show a "HEAVY" or "FULL" day, avoid scheduling big tasks there. Move them to a "LIGHT" day.
+   - For morning habits, use 07:00-08:00. For evening habits, use 20:00-21:00.
+   - If the day is busy, find the gap! 
+7. **SUBTASKS (Break it down)**:
+   - For **Complex/Big Tasks** (e.g., "Write Essay", "Plan Party"), include a \`subtasks\` array with 3-5 small, actionable steps.
+   - Structure: \`subtasks: [{ "title": "Outline key points", "completed": false }, ...]\`
+   - For simple tasks (e.g., "Drink water"), leave \`subtasks\` empty [].
+8. **ROLLING WINDOW (Max 4 Weeks)**:
+   - If the duration is > 28 days (4 weeks), you MUST still create **Phases** for the full duration (e.g. 8 weeks).
+   - **HOWEVER**, only generate detailed \`tasks\` for the **FIRST 4 WEEKS**.
+   - For Weeks 5+, return an empty tasks array \`[]\` or a single placeholder task like "Review progress and regenerate plan".
+   - This ensures the user isn't overwhelmed.
+9. **PREVENT HALLUCINATION (Study/Learning Goals):**
    - IF YOU DON'T KNOW the specific chapters/syllabus:
    - **DO NOT INVENT** topics (e.g., don't say "Study Newton's Laws" if not mentioned).
    - **USE PLACEHOLDERS**: "Study Topic 1", "Review Chapter 1", "Practice Problem Set".

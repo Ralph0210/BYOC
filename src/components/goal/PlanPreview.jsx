@@ -302,7 +302,7 @@ export function PlanPreview({
             ? `Week ${phase.week}: ${phase.name}`
             : phase.name
 
-          const weekTasks = phase.tasks.map((t) => `${phaseId}-${t.name}`)
+          const weekTasks = phase.tasks.map((t) => t.id)
           const allSelected = weekTasks.every((id) =>
             selectedTasks.includes(id),
           )
@@ -363,7 +363,7 @@ export function PlanPreview({
               {/* Tasks */}
               <div className="space-y-2">
                 {phase.tasks.map((task, taskIndex) => {
-                  const taskId = `${phaseId}-${task.name}`
+                  const taskId = task.id
                   return (
                     <PlanTaskItem
                       key={taskId}
