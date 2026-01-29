@@ -1,10 +1,37 @@
 import { useState } from "react"
-import { Calendar, Gift, ExternalLink } from "lucide-react"
+import { Calendar, Gift, ExternalLink, Sparkles, FileText } from "lucide-react"
 import { Button } from "../ui/Button"
 import { formatDate, addDays, parseDate } from "../../lib/utils"
+import { GoalWizard } from "../goal/GoalWizard"
+import { PlanPreview } from "../goal/PlanPreview"
+import { useGoalPlanGenerator } from "../../hooks/useGoalPlanGenerator"
+import { cn } from "../../lib/utils"
 
 export function ChallengeForm({ challenge, onSubmit, onCancel }) {
   const today = formatDate(new Date())
+
+  // Mode toggle: "manual" or "goal"
+  const [mode, setMode] = useState("manual")
+
+  // Goal wizard state
+  const [goalData, setGoalData] = useState(null)
+  const [selectedTasks, setSelectedTasks] = useState([])
+  const {
+    plan,
+    loading: planLoading,
+    loadingQuestions,
+    regeneratingWeek,
+    error: planError,
+    rawResponse,
+    clarifyingQuestions,
+    generateClarifyingQuestions,
+    generatePlan,
+    regenerateWeek,
+    updateTask: updatePlanTask,
+    deleteTask: deletePlanTask,
+    resetPlan,
+    hasApiKey,
+  } = useGoalPlanGenerator()
 
   const [formData, setFormData] = useState({
     name: challenge?.name || "",
@@ -27,7 +54,7 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
       if (field === "duration_days" && prev.use_duration) {
         // Use parseDate to avoid timezone issues with date strings
         newData.end_date = formatDate(
-          addDays(parseDate(prev.start_date), value - 1)
+          addDays(parseDate(prev.start_date), value - 1),
         )
       }
 
@@ -35,7 +62,7 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
       if (field === "start_date" && prev.use_duration) {
         // Use parseDate to avoid timezone issues with date strings
         newData.end_date = formatDate(
-          addDays(parseDate(value), prev.duration_days - 1)
+          addDays(parseDate(value), prev.duration_days - 1),
         )
       }
 
@@ -76,8 +103,8 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
           ? formatDate(
               addDays(
                 parseDate(formData.start_date),
-                formData.duration_days - 1
-              )
+                formData.duration_days - 1,
+              ),
             )
           : formData.end_date,
         duration_days: formData.use_duration ? formData.duration_days : null,
@@ -88,10 +115,316 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
     }
   }
 
+  // Goal mode handlers
+  const handleGeneratePlan = async (data) => {
+    setGoalData(data)
+    const generatedPlan = await generatePlan(data)
+    if (generatedPlan) {
+      // Pre-select all tasks
+      const allTaskIds = generatedPlan.phases.flatMap((phase) =>
+        phase.tasks.map((task) => task.id),
+      )
+      setSelectedTasks(allTaskIds)
+    }
+  }
+
+  const handleToggleTask = (taskId) => {
+    setSelectedTasks((prev) =>
+      prev.includes(taskId)
+        ? prev.filter((id) => id !== taskId)
+        : [...prev, taskId],
+    )
+  }
+
+  const handleSelectAllWeek = (weekNumber) => {
+    if (!plan) return
+    const weekPhase = plan.phases.find((p) => p.week === weekNumber)
+    if (!weekPhase) return
+    const weekTaskIds = weekPhase.tasks.map((t) => t.id)
+    setSelectedTasks((prev) => [...new Set([...prev, ...weekTaskIds])])
+  }
+
+  const handleDeselectAllWeek = (weekNumber) => {
+    if (!plan) return
+    const weekPhase = plan.phases.find((p) => p.week === weekNumber)
+    if (!weekPhase) return
+    const weekTaskIds = weekPhase.tasks.map((t) => t.id)
+    setSelectedTasks((prev) => prev.filter((id) => !weekTaskIds.includes(id)))
+  }
+
+  const handleRegenerateAll = async (userPrompt = "") => {
+    if (goalData) {
+      // If user provided feedback, add it to the goal data temporarily
+      const augmentedGoalData = userPrompt
+        ? {
+            ...goalData,
+            concerns: `${goalData.concerns || ""}\n\nUser feedback: ${userPrompt}`,
+          }
+        : goalData
+      const newPlan = await generatePlan(augmentedGoalData)
+      if (newPlan) {
+        const allTaskIds = newPlan.phases.flatMap((phase) =>
+          phase.tasks.map((task) => task.id),
+        )
+        setSelectedTasks(allTaskIds)
+      }
+    }
+  }
+
+  const handleRegenerateWeek = async (weekNumber, userPrompt = "") => {
+    if (goalData) {
+      await regenerateWeek(weekNumber, goalData, userPrompt)
+    }
+  }
+
+  const handleConfirmGoalPlan = () => {
+    if (!plan || selectedTasks.length === 0) return
+
+    // Build challenge data from goal - use dynamic duration from plan
+    const startDate = goalData.startDate
+    const durationDays = plan.duration_days || goalData.durationDays || 28
+    const endDate = formatDate(addDays(parseDate(startDate), durationDays - 1))
+
+    // Convert selected tasks to task creation data
+    const tasksToCreate = []
+    plan.phases.forEach((phase) => {
+      const phaseKey = phase.week || phase.phase // Support both week and phase keys
+      phase.tasks.forEach((task) => {
+        const taskId = task.id
+        if (selectedTasks.includes(taskId)) {
+          // Parse frequency from AI response
+          const frequencyType = parseFrequencyType(task.frequency)
+
+          tasksToCreate.push({
+            name: task.name,
+            description: task.notes || "", // terminology fix: note -> description
+            subtasks: task.subtasks || [], // Pass subtasks to creation handler
+            scheduled_time: task.scheduled_time || null, // AI suggested time
+            frequency_type: frequencyType.type,
+            frequency_days: frequencyType.days,
+            frequency_count: frequencyType.count,
+            icon: "target",
+            color: getPhaseColor(phase.week),
+          })
+        }
+      })
+    })
+
+    // Build challenge name from plan title
+    let challengeName = plan.plan_title || goalData.goal
+    // Remove common prefixes
+    challengeName = challengeName
+      .replace(/^Your 4-Week Plan to /i, "")
+      .replace(/^4-Week Plan to /i, "")
+
+    // Submit challenge with tasks (only include valid fields for database)
+    onSubmit(
+      {
+        name: challengeName,
+        description: `Goal: ${goalData.goal}${goalData.clarificationContext ? `\n\nDetails:\n${goalData.clarificationContext}` : ""}`,
+        start_date: startDate,
+        end_date: endDate,
+        duration_days: durationDays,
+        reward_text: "",
+        reward_link: "",
+      },
+      tasksToCreate,
+    )
+  }
+
+  // Helper to parse AI frequency text into database format
+  const parseFrequencyType = (frequencyText) => {
+    const text = (frequencyText || "").toLowerCase()
+
+    // Daily patterns
+    if (
+      text.includes("daily") ||
+      text.includes("every day") ||
+      text.includes("every morning") ||
+      text.includes("every night")
+    ) {
+      return { type: "daily", days: [], count: 1 }
+    }
+
+    // Specific days patterns (Mon, Wed, Fri etc)
+    const dayMap = {
+      sun: 0,
+      mon: 1,
+      tue: 2,
+      wed: 3,
+      thu: 4,
+      fri: 5,
+      sat: 6,
+    }
+    const foundDays = Object.keys(dayMap)
+      .filter((d) => text.includes(d))
+      .map((d) => dayMap[d])
+
+    if (foundDays.length > 0) {
+      return { type: "specific_days", days: foundDays, count: 1 }
+    }
+
+    // X times per week
+    const timesMatch = text.match(/(\d+)x?\s*(per|a|\/)\s*week/i)
+    if (timesMatch) {
+      const count = parseInt(timesMatch[1])
+      return { type: "weekly", days: [], count }
+    }
+
+    // Once patterns
+    if (text.includes("once") || text.includes("1x")) {
+      return { type: "weekly", days: [], count: 1 }
+    }
+
+    // Default to flexible/weekly
+    return { type: "weekly", days: [], count: 3 }
+  }
+
+  const handleBackFromPlan = () => {
+    resetPlan()
+    setGoalData(null)
+  }
+
   const presetDurations = [7, 14, 21, 30, 60, 90]
 
+  // Goal mode rendering
+  if (mode === "goal") {
+    // Show plan preview if plan is generated
+    if (plan) {
+      return (
+        <PlanPreview
+          plan={plan}
+          selectedTasks={selectedTasks}
+          onToggleTask={handleToggleTask}
+          onSelectAllWeek={handleSelectAllWeek}
+          onDeselectAllWeek={handleDeselectAllWeek}
+          onRegenerateWeek={handleRegenerateWeek}
+          onRegenerateAll={handleRegenerateAll}
+          onUpdateTask={(week, index, updatedTask) => {
+            updatePlanTask(week, index, updatedTask)
+          }}
+          onDeleteTask={(week, index) => {
+            deletePlanTask(week, index)
+            // Remove from selected if it was selected
+            const phase = plan.phases.find((p) => p.week === week)
+            if (phase && phase.tasks[index]) {
+              const taskId = phase.tasks[index].id
+              setSelectedTasks((prev) => prev.filter((id) => id !== taskId))
+            }
+          }}
+          onAddTask={() => {}} // TODO: implement add modal
+          onConfirm={handleConfirmGoalPlan}
+          onBack={handleBackFromPlan}
+          regeneratingWeek={regeneratingWeek}
+          regeneratingAll={planLoading}
+        />
+      )
+    }
+
+    // Show goal wizard
+    return (
+      <div className="space-y-4">
+        {/* Mode Toggle */}
+        <div className="flex gap-1 p-1 bg-surface-light dark:bg-gray-800/50 rounded-xl border border-app">
+          <button
+            type="button"
+            onClick={() => setMode("manual")}
+            className={cn(
+              "flex-1 py-2 px-3 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2",
+              mode === "manual"
+                ? "bg-white dark:bg-gray-700 shadow-sm text-primary"
+                : "text-secondary hover:text-primary",
+            )}
+          >
+            <FileText className="w-4 h-4" />
+            Manual
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("goal")}
+            className={cn(
+              "flex-1 py-2 px-3 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2",
+              mode === "goal"
+                ? "bg-white dark:bg-gray-700 shadow-sm text-primary"
+                : "text-secondary hover:text-primary",
+            )}
+          >
+            <Sparkles className="w-4 h-4" />
+            From Goal
+          </button>
+        </div>
+
+        {!hasApiKey && (
+          <div className="p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+            <p className="text-sm text-yellow-700 dark:text-yellow-400">
+              Configure your AI settings to use goal-based challenge creation.
+            </p>
+          </div>
+        )}
+
+        {planError && (
+          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 space-y-2">
+            <p className="text-sm text-red-600">{planError}</p>
+            {rawResponse && (
+              <details className="text-xs">
+                <summary className="cursor-pointer text-red-500 hover:underline">
+                  Show AI Response (for debugging)
+                </summary>
+                <pre className="mt-2 p-2 bg-black/10 rounded overflow-auto max-h-48 text-[10px] whitespace-pre-wrap">
+                  {rawResponse}
+                </pre>
+              </details>
+            )}
+          </div>
+        )}
+
+        <GoalWizard
+          onGenerate={handleGeneratePlan}
+          onCancel={onCancel}
+          loading={planLoading}
+          onGenerateClarifyingQuestions={generateClarifyingQuestions}
+          loadingQuestions={loadingQuestions}
+          clarifyingQuestions={clarifyingQuestions}
+        />
+      </div>
+    )
+  }
+
+  // Manual mode - original form
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Mode Toggle */}
+      {!challenge && (
+        <div className="flex gap-1 p-1 bg-surface-light dark:bg-gray-800/50 rounded-xl border border-app">
+          <button
+            type="button"
+            onClick={() => setMode("manual")}
+            className={cn(
+              "flex-1 py-2 px-3 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2",
+              mode === "manual"
+                ? "bg-white dark:bg-gray-700 shadow-sm text-primary"
+                : "text-secondary hover:text-primary",
+            )}
+          >
+            <FileText className="w-4 h-4" />
+            Manual
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("goal")}
+            className={cn(
+              "flex-1 py-2 px-3 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2",
+              mode === "goal"
+                ? "bg-white dark:bg-gray-700 shadow-sm text-primary"
+                : "text-secondary hover:text-primary",
+            )}
+          >
+            <Sparkles className="w-4 h-4" />
+            From Goal
+          </button>
+        </div>
+      )}
+
       {/* Hero Section: Name & Description */}
       <div className="space-y-3">
         <div>
@@ -191,7 +524,7 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
                     onChange={(e) =>
                       handleChange(
                         "duration_days",
-                        parseInt(e.target.value) || 1
+                        parseInt(e.target.value) || 1,
                       )
                     }
                     className="w-12 bg-transparent border-b border-secondary focus:border-primary-500 p-0 text-center text-primary font-medium focus:ring-0 outline-none"
@@ -285,4 +618,15 @@ export function ChallengeForm({ challenge, onSubmit, onCancel }) {
       </div>
     </form>
   )
+}
+
+// Helper to get phase-specific colors
+function getPhaseColor(week) {
+  const colors = {
+    1: "#34C759", // Green - Foundation
+    2: "#007AFF", // Blue - Building
+    3: "#FF9500", // Orange - Pushing
+    4: "#5856D6", // Purple - Consolidating
+  }
+  return colors[week] || "#007AFF"
 }

@@ -37,9 +37,14 @@ export function useTasks() {
           return {
             ...task,
             name: (await decryptData(task.name, user.id)) || task.name,
-            note: (await decryptData(task.note, user.id)) || task.note,
+            description:
+              (await decryptData(task.description, user.id)) ||
+              task.description,
+            subtasks: task.subtasks
+              ? JSON.parse((await decryptData(task.subtasks, user.id)) || "[]")
+              : [],
           }
-        })
+        }),
       )
 
       // If fetching for a specific challenge, merge with existing tasks
@@ -93,9 +98,14 @@ export function useTasks() {
           return {
             ...task,
             name: (await decryptData(task.name, user.id)) || task.name,
-            note: (await decryptData(task.note, user.id)) || task.note,
+            description:
+              (await decryptData(task.description, user.id)) ||
+              task.description,
+            subtasks: task.subtasks
+              ? JSON.parse((await decryptData(task.subtasks, user.id)) || "[]")
+              : [],
           }
-        })
+        }),
       )
 
       setTasks(decryptedTasks)
@@ -131,7 +141,12 @@ export function useTasks() {
       const encryptedData = {
         ...taskData,
         name: await encryptData(taskData.name, user.id),
-        note: taskData.note ? await encryptData(taskData.note, user.id) : null,
+        description: taskData.description
+          ? await encryptData(taskData.description, user.id)
+          : "",
+        subtasks: taskData.subtasks
+          ? await encryptData(JSON.stringify(taskData.subtasks), user.id)
+          : await encryptData(JSON.stringify([]), user.id),
       }
 
       const { data, error: createError } = await supabase
@@ -148,7 +163,8 @@ export function useTasks() {
       const decryptedNewTask = {
         ...data,
         name: taskData.name, // optimization: use input plaintext
-        note: taskData.note,
+        description: taskData.description,
+        subtasks: taskData.subtasks || [],
       }
 
       setTasks((prev) => [...prev, decryptedNewTask])
@@ -172,11 +188,17 @@ export function useTasks() {
       if (updates.name) {
         encryptedUpdates.name = await encryptData(updates.name, user.id)
       }
-      if (updates.note !== undefined) {
-        // Handle explicit null or string
-        encryptedUpdates.note = updates.note
-          ? await encryptData(updates.note, user.id)
-          : null
+      if (updates.description !== undefined) {
+        // Handle explicit empty string or string
+        encryptedUpdates.description = updates.description
+          ? await encryptData(updates.description, user.id)
+          : ""
+      }
+      if (updates.subtasks !== undefined) {
+        encryptedUpdates.subtasks = await encryptData(
+          JSON.stringify(updates.subtasks),
+          user.id,
+        )
       }
 
       const { data, error: updateError } = await supabase
@@ -191,7 +213,11 @@ export function useTasks() {
       const decryptedData = {
         ...data,
         name: (await decryptData(data.name, user.id)) || data.name,
-        note: (await decryptData(data.note, user.id)) || data.note,
+        description:
+          (await decryptData(data.description, user.id)) || data.description,
+        subtasks: data.subtasks
+          ? JSON.parse((await decryptData(data.subtasks, user.id)) || "[]")
+          : [],
       }
 
       setTasks((prev) => prev.map((t) => (t.id === id ? decryptedData : t)))

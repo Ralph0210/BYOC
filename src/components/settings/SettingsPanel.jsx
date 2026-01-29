@@ -6,12 +6,20 @@ import {
   ChevronRight,
   User,
   Trash2,
+  Calendar,
+  Loader2,
+  Zap,
+  Search,
 } from "lucide-react"
 import { supabase } from "../../lib/supabase"
 import { useTheme } from "../../hooks/useTheme"
 import { useAuth } from "../../hooks/useAuth"
 import { useAIConfig } from "../../hooks/useAIConfig"
+import { useGoogleCalendar } from "../../hooks/useGoogleCalendar"
+import { useTasks } from "../../hooks/useTasks"
 import { AIConfigForm } from "../ai/AIConfigForm"
+import { CalendarExplorer } from "../calendar/CalendarExplorer"
+import { SmartScheduling } from "../calendar/SmartScheduling"
 import { cn } from "../../lib/utils"
 import { useState } from "react"
 
@@ -27,7 +35,15 @@ export function SettingsPanel({ onClose }) {
   const { theme, setTheme } = useTheme()
   const { signOut, user } = useAuth()
   const { config } = useAIConfig()
+  const {
+    isConnected: isCalendarConnected,
+    isConnecting,
+    connect: connectCalendar,
+    disconnect: disconnectCalendar,
+  } = useGoogleCalendar()
+  const { tasks } = useTasks()
   const [activeSection, setActiveSection] = useState(null)
+  const [calendarTab, setCalendarTab] = useState("scheduling")
 
   const handleSignOut = async () => {
     await signOut()
@@ -52,6 +68,103 @@ export function SettingsPanel({ onClose }) {
     )
   }
 
+  // If viewing Calendar settings, show the CalendarExplorer
+  if (activeSection === "calendar") {
+    return (
+      <div className="space-y-4">
+        <button
+          onClick={() => setActiveSection(null)}
+          className="flex items-center gap-2 text-sm text-secondary hover:text-primary transition-colors -ml-1"
+        >
+          <ChevronRight className="w-4 h-4 rotate-180" />
+          Back to Settings
+        </button>
+
+        {/* Connection Controls */}
+        <div className="flex items-center justify-between p-4 bg-surface rounded-xl">
+          <div className="flex items-center gap-3">
+            <div
+              className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center",
+                isCalendarConnected ? "bg-green-500/15" : "bg-surface",
+              )}
+            >
+              <Calendar
+                className={cn(
+                  "w-5 h-5",
+                  isCalendarConnected ? "text-green-500" : "text-tertiary",
+                )}
+              />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-primary">
+                Google Calendar
+              </p>
+              <p className="text-xs text-tertiary">
+                {isCalendarConnected ? "Connected" : "Not connected"}
+              </p>
+            </div>
+          </div>
+
+          {isCalendarConnected ? (
+            <button
+              onClick={disconnectCalendar}
+              className="px-3 py-1.5 text-sm text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+            >
+              Disconnect
+            </button>
+          ) : (
+            <button
+              onClick={connectCalendar}
+              disabled={isConnecting}
+              className="px-4 py-2 text-sm font-medium bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {isConnecting && <Loader2 className="w-4 h-4 animate-spin" />}
+              Connect
+            </button>
+          )}
+        </div>
+
+        {/* Tabs for Smart Scheduling / Explorer */}
+        {isCalendarConnected && (
+          <div className="flex gap-1 p-1 bg-surface rounded-lg">
+            <button
+              onClick={() => setCalendarTab("scheduling")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                calendarTab === "scheduling"
+                  ? "bg-white dark:bg-gray-700 text-primary shadow-sm"
+                  : "text-secondary hover:text-primary",
+              )}
+            >
+              <Zap className="w-4 h-4" />
+              Smart Schedule
+            </button>
+            <button
+              onClick={() => setCalendarTab("explorer")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                calendarTab === "explorer"
+                  ? "bg-white dark:bg-gray-700 text-primary shadow-sm"
+                  : "text-secondary hover:text-primary",
+              )}
+            >
+              <Search className="w-4 h-4" />
+              Explorer
+            </button>
+          </div>
+        )}
+
+        {/* Tab Content */}
+        {calendarTab === "scheduling" ? (
+          <SmartScheduling tasks={tasks} />
+        ) : (
+          <CalendarExplorer />
+        )}
+      </div>
+    )
+  }
+
   // Reusable settings row component
   const SettingsRow = ({
     icon: Icon,
@@ -68,14 +181,14 @@ export function SettingsPanel({ onClose }) {
       className={cn(
         "w-full flex items-center gap-4 p-3 rounded-xl transition-colors",
         "hover:bg-surface-hover",
-        danger && "text-red-500 hover:text-red-600"
+        danger && "text-red-500 hover:text-red-600",
       )}
     >
       {/* Icon Container - Fixed 40x40 */}
       <div
         className={cn(
           "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
-          iconBg
+          iconBg,
         )}
       >
         <Icon className={cn("w-5 h-5", iconColor)} />
@@ -86,7 +199,7 @@ export function SettingsPanel({ onClose }) {
         <p
           className={cn(
             "text-sm font-medium",
-            danger ? "text-red-500" : "text-primary"
+            danger ? "text-red-500" : "text-primary",
           )}
         >
           {title}
@@ -138,7 +251,7 @@ export function SettingsPanel({ onClose }) {
             <div
               className={cn(
                 "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
-                theme === "dark" ? "bg-indigo-500/15" : "bg-yellow-500/15"
+                theme === "dark" ? "bg-indigo-500/15" : "bg-yellow-500/15",
               )}
             >
               {theme === "dark" ? (
@@ -162,7 +275,7 @@ export function SettingsPanel({ onClose }) {
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className={cn(
               "relative w-14 h-8 rounded-full transition-colors duration-200",
-              theme === "dark" ? "bg-indigo-500" : "bg-gray-300"
+              theme === "dark" ? "bg-indigo-500" : "bg-gray-300",
             )}
             role="switch"
             aria-checked={theme === "dark"}
@@ -172,7 +285,7 @@ export function SettingsPanel({ onClose }) {
             <span
               className={cn(
                 "absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform duration-200 flex items-center justify-center",
-                theme === "dark" ? "translate-x-7" : "translate-x-1"
+                theme === "dark" ? "translate-x-7" : "translate-x-1",
               )}
             >
               {theme === "dark" ? (
@@ -209,6 +322,26 @@ export function SettingsPanel({ onClose }) {
           action={<ChevronRight className="w-5 h-5 text-tertiary" />}
         />
       </div>
+
+      {/* Integrations Section */}
+      <div className="space-y-1">
+        <p className="text-xs font-medium text-tertiary uppercase tracking-wider px-3 py-2">
+          Integrations
+        </p>
+
+        <SettingsRow
+          icon={Calendar}
+          iconBg={isCalendarConnected ? "bg-green-500/15" : "bg-surface"}
+          iconColor={isCalendarConnected ? "text-green-500" : "text-tertiary"}
+          title="Google Calendar"
+          subtitle={
+            isCalendarConnected ? "Connected" : "Connect to sync events"
+          }
+          onClick={() => setActiveSection("calendar")}
+          action={<ChevronRight className="w-5 h-5 text-tertiary" />}
+        />
+      </div>
+
       {/* Account Section */}
       <div className="space-y-1">
         <p className="text-xs font-medium text-tertiary uppercase tracking-wider px-3 py-2">
@@ -233,7 +366,7 @@ export function SettingsPanel({ onClose }) {
           onClick={async () => {
             if (
               window.confirm(
-                "Are you absolutely sure? This will permanently delete your account and all associated data (Challenges, Tasks, History). This action cannot be undone."
+                "Are you absolutely sure? This will permanently delete your account and all associated data (Challenges, Tasks, History). This action cannot be undone.",
               )
             ) {
               try {
@@ -243,7 +376,7 @@ export function SettingsPanel({ onClose }) {
               } catch (err) {
                 console.error("Delete account error:", err)
                 alert(
-                  "Failed to delete account. Please ensure the SQL function exists."
+                  "Failed to delete account. Please ensure the SQL function exists.",
                 )
               }
             }

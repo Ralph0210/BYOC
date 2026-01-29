@@ -34,6 +34,7 @@ import { useCompletions } from "./hooks/useCompletions"
 import { useSnoozes } from "./hooks/useSnoozes"
 import { useTheme } from "./hooks/useTheme"
 import { useAuth } from "./hooks/useAuth.jsx"
+import { useGoogleCalendar } from "./hooks/useGoogleCalendar"
 import { LandingPage } from "./components/landing/LandingPage"
 import {
   getToday,
@@ -53,6 +54,8 @@ import {
   ReturnNote,
   EmptyStateNote,
 } from "./components/ai/AmbientNote"
+import { AISortButton } from "./components/ai/AISortButton"
+import { DayPlanner } from "./components/calendar/DayPlanner"
 import { ConversationPanel } from "./components/ai/ConversationPanel"
 import { SettingsPanel } from "./components/settings/SettingsPanel"
 import {
@@ -106,6 +109,7 @@ function App() {
   const [editingChallenge, setEditingChallenge] = useState(null)
   const [editingTask, setEditingTask] = useState(null)
   const [selectedChallengeForTask, setSelectedChallengeForTask] = useState(null)
+  const [progressViewMode, setProgressViewMode] = useState("grid") // "grid" or "day"
 
   // AI State
   const { config } = useAIConfig()
@@ -113,6 +117,7 @@ function App() {
   const [showAISettings, setShowAISettings] = useState(false)
   const [showChat, setShowChat] = useState(false)
   const [chatInitialContext, setChatInitialContext] = useState(null)
+  const [sortedTaskIds, setSortedTaskIds] = useState({}) // Per-challenge sorted task order
 
   const handleOpenChat = (context = null) => {
     setChatInitialContext(context)
@@ -149,6 +154,9 @@ function App() {
   const { snoozes, fetchSnoozes, addSnooze, removeSnooze, isTaskSnoozed } =
     useSnoozes()
 
+  // Google Calendar Data
+  const { todayEvents, weekEvents } = useGoogleCalendar()
+
   // Initial data fetch
   useEffect(() => {
     fetchChallenges()
@@ -181,7 +189,7 @@ function App() {
             }))
             const startDate = dates.reduce(
               (min, d) => (d.start < min ? d.start : min),
-              dates[0].start
+              dates[0].start,
             )
             fetchCompletions(taskIds, startDate, today)
             fetchSnoozes(taskIds, startDate, today)
@@ -207,7 +215,7 @@ function App() {
 
       activeChallenges.forEach((challenge) => {
         const challengeTasks = tasks.filter(
-          (t) => t.challenge_id === challenge.id
+          (t) => t.challenge_id === challenge.id,
         )
 
         challengeTasks.forEach((task) => {
@@ -219,7 +227,7 @@ function App() {
           const daysSinceLastDone = lastCompletedDate
             ? Math.floor(
                 (new Date() - new Date(lastCompletedDate)) /
-                  (1000 * 60 * 60 * 24)
+                  (1000 * 60 * 60 * 24),
               )
             : 999
 
@@ -232,7 +240,7 @@ function App() {
               },
               config,
               user?.user_metadata?.full_name?.split(" ")[0] ||
-                user?.email?.split("@")[0]
+                user?.email?.split("@")[0],
             )
           }
         })
@@ -257,10 +265,10 @@ function App() {
         challenge,
         challengeTasks,
         completions,
-        snoozes
+        snoozes,
       )
     },
-    [completions, snoozes]
+    [completions, snoozes],
   )
 
   // Handle task snooze toggle
@@ -272,7 +280,7 @@ function App() {
         await addSnooze(taskId, date)
       }
     },
-    [isTaskSnoozed, addSnooze, removeSnooze]
+    [isTaskSnoozed, addSnooze, removeSnooze],
   )
 
   // Handle task completion
@@ -288,7 +296,7 @@ function App() {
         await addCompletion(taskId, date)
       }
     },
-    [tasks, getCompletionCountForTask, addCompletion]
+    [tasks, getCompletionCountForTask, addCompletion],
   )
 
   // Handle task uncomplete (decrement)
@@ -305,12 +313,12 @@ function App() {
         }))
         const startDate = dates.reduce(
           (min, d) => (d.start < min ? d.start : min),
-          dates[0].start
+          dates[0].start,
         )
         fetchCompletions(taskIds, startDate, today)
       }
     },
-    [challenges, tasks, removeCompletion, fetchCompletions, today]
+    [challenges, tasks, removeCompletion, fetchCompletions, today],
   )
 
   // Refetch completions after any completion change
@@ -324,22 +332,46 @@ function App() {
       }))
       const startDate = dates.reduce(
         (min, d) => (d.start < min ? d.start : min),
-        dates[0].start
+        dates[0].start,
       )
       fetchCompletions(taskIds, startDate, today)
     }
   }, [challenges, tasks, fetchCompletions, today])
 
   // Challenge handlers
-  const handleSaveChallenge = async (data) => {
+  const handleSaveChallenge = async (data, tasksToCreate = null) => {
+    let savedChallenge = null
+
     if (editingChallenge) {
-      await updateChallenge(editingChallenge.id, data)
+      savedChallenge = await updateChallenge(editingChallenge.id, data)
     } else {
-      await createChallenge(data)
+      savedChallenge = await createChallenge(data)
+
+      // If tasks are provided (from goal creation), create them
+      if (tasksToCreate && tasksToCreate.length > 0 && savedChallenge) {
+        for (const taskData of tasksToCreate) {
+          await createTask({ ...taskData, challenge_id: savedChallenge.id })
+        }
+      }
+
+      // Auto-select the newly created challenge
+      if (savedChallenge) {
+        setSelectedChallengeId(savedChallenge.id)
+      }
     }
+
     setShowChallengeModal(false)
     setEditingChallenge(null)
-    fetchChallenges()
+
+    // Parallel fetch: refresh challenges list AND tasks for all active challenges
+    // Important: we need to use the potential new list of challenges
+    const updatedChallenges = await fetchChallenges()
+    const activeChallenges = updatedChallenges.filter((c) => !c.is_archived)
+    const challengeIds = activeChallenges.map((c) => c.id)
+
+    if (challengeIds.length > 0) {
+      await fetchTasksForChallenges(challengeIds)
+    }
   }
 
   const handleDeleteChallenge = async (challengeId) => {
@@ -361,11 +393,12 @@ function App() {
     setShowTaskModal(false)
     setEditingTask(null)
     setSelectedChallengeForTask(null)
-    // Refetch tasks
-    const challengeIds = challenges
-      .filter((c) => !c.is_archived)
-      .map((c) => c.id)
-    fetchTasksForChallenges(challengeIds)
+    // Refetch tasks for all active challenges
+    const activeChallenges = challenges.filter((c) => !c.is_archived)
+    const challengeIds = activeChallenges.map((c) => c.id)
+    if (challengeIds.length > 0) {
+      await fetchTasksForChallenges(challengeIds)
+    }
   }
 
   const handleDeleteTask = async (id) => {
@@ -412,7 +445,7 @@ function App() {
       if (isTaskActiveOnDate(task, today)) {
         todayTarget += task.frequency_count || 1
         const taskCompletions = completions.filter(
-          (c) => c.task_id === task.id && c.date === today
+          (c) => c.task_id === task.id && c.date === today,
         ).length
         todayDone += Math.min(taskCompletions, task.frequency_count || 1)
       }
@@ -439,7 +472,7 @@ function App() {
               {daysRemaining > 0 && (
                 <span
                   className={cn(
-                    daysRemaining <= 3 && "text-orange-500 font-medium"
+                    daysRemaining <= 3 && "text-orange-500 font-medium",
                   )}
                 >
                   {daysRemaining} day{daysRemaining !== 1 ? "s" : ""} left
@@ -495,36 +528,79 @@ function App() {
             </div>
           )}
 
-          {/* Heatmap Card */}
-          <div className="dashboard-card p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="dashboard-card-icon">
-                <Calendar className="w-4 h-4" />
+          {/* Heatmap/DayPlanner Card */}
+          <div className="dashboard-card p-4 min-h-[400px]">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="dashboard-card-icon">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-semibold text-primary">Progress</h3>
               </div>
-              <h3 className="text-sm font-semibold text-primary">Progress</h3>
+
+              {/* View Toggle */}
+              <div className="flex bg-surface-alt rounded-lg p-0.5 border border-border">
+                <button
+                  onClick={() => setProgressViewMode("grid")}
+                  className={cn(
+                    "p-1.5 rounded-md transition-colors",
+                    progressViewMode === "grid"
+                      ? "bg-white dark:bg-gray-700 text-primary shadow-sm"
+                      : "text-tertiary hover:text-secondary",
+                  )}
+                  title="Month View"
+                >
+                  <Calendar className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setProgressViewMode("day")}
+                  className={cn(
+                    "p-1.5 rounded-md transition-colors",
+                    progressViewMode === "day"
+                      ? "bg-white dark:bg-gray-700 text-primary shadow-sm"
+                      : "text-tertiary hover:text-secondary",
+                  )}
+                  title="Day View"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-            <CalendarGrid
-              tasks={challengeTasks}
-              completions={completions}
-              snoozes={snoozes}
-              startDate={challenge.start_date}
-              endDate={challenge.end_date}
-              selectedDate={selectedDates[challenge.id] || today}
-              onDateClick={(date) => {
-                if (date <= today) {
-                  setSelectedDates((prev) => ({
-                    ...prev,
-                    [challenge.id]: date,
-                  }))
+
+            {progressViewMode === "grid" ? (
+              <CalendarGrid
+                tasks={challengeTasks}
+                completions={completions}
+                snoozes={snoozes}
+                startDate={challenge.start_date}
+                endDate={challenge.end_date}
+                selectedDate={selectedDates[challenge.id] || today}
+                onDateClick={(date) => {
+                  if (date <= today) {
+                    setSelectedDates((prev) => ({
+                      ...prev,
+                      [challenge.id]: date,
+                    }))
+                    // Auto-switch to day view on click if desired? No, stay on grid for navigation
+                  }
+                }}
+                weeksToShow={
+                  Math.ceil(
+                    daysDiff(challenge.start_date, challenge.end_date) / 7,
+                  ) + 1
                 }
-              }}
-              weeksToShow={
-                Math.ceil(
-                  daysDiff(challenge.start_date, challenge.end_date) / 7
-                ) + 1
-              }
-              minWeeks={20}
-            />
+                minWeeks={20}
+              />
+            ) : (
+              <DayPlanner
+                date={selectedDates[challenge.id] || today}
+                tasks={challengeTasks.filter((t) =>
+                  isTaskActiveOnDate(t, selectedDates[challenge.id] || today),
+                )}
+                events={[...todayEvents, ...weekEvents]}
+                onEditTask={handleEditTask}
+              />
+            )}
           </div>
         </div>
 
@@ -543,6 +619,19 @@ function App() {
                 {todayTarget > 0 && (
                   <span className="done-badge">{todayDone} done</span>
                 )}
+                <AISortButton
+                  tasks={challengeTasks.filter((t) =>
+                    isTaskActiveOnDate(t, selectedDates[challenge.id] || today),
+                  )}
+                  onUpdateTask={updateTask}
+                  onSort={(sortedTasks) => {
+                    // Store the sorted order for this challenge
+                    setSortedTaskIds((prev) => ({
+                      ...prev,
+                      [challenge.id]: sortedTasks.map((t) => t.id),
+                    }))
+                  }}
+                />
                 <Button
                   size="xs"
                   variant="ghost"
@@ -557,9 +646,22 @@ function App() {
             {/* Task List */}
             {(() => {
               const selectedDate = selectedDates[challenge.id] || today
-              const dateTasks = challengeTasks.filter((t) =>
-                isTaskActiveOnDate(t, selectedDate)
+              let dateTasks = challengeTasks.filter((t) =>
+                isTaskActiveOnDate(t, selectedDate),
               )
+
+              // Apply AI sorting if available
+              const sortOrder = sortedTaskIds[challenge.id]
+              if (sortOrder && sortOrder.length > 0) {
+                dateTasks = [...dateTasks].sort((a, b) => {
+                  const aIdx = sortOrder.indexOf(a.id)
+                  const bIdx = sortOrder.indexOf(b.id)
+                  if (aIdx === -1) return 1
+                  if (bIdx === -1) return -1
+                  return aIdx - bIdx
+                })
+              }
+
               const isFutureDate = selectedDate > today
 
               return dateTasks.length > 0 ? (
@@ -570,7 +672,7 @@ function App() {
                       task={task}
                       completionCount={getCompletionCountForTask(
                         task.id,
-                        selectedDate
+                        selectedDate,
                       )}
                       onComplete={handleCompleteTask}
                       onUncomplete={handleUncompleteTask}
@@ -642,7 +744,7 @@ function App() {
 
     // Tasks active on selected date
     const dateTasks = challengeTasks.filter((t) =>
-      isTaskActiveOnDate(t, selectedDate)
+      isTaskActiveOnDate(t, selectedDate),
     )
 
     // Date navigation handlers
@@ -731,7 +833,7 @@ function App() {
             onDateClick={handleDateClick}
             weeksToShow={
               Math.ceil(
-                daysDiff(challenge.start_date, challenge.end_date) / 7
+                daysDiff(challenge.start_date, challenge.end_date) / 7,
               ) + 1
             }
             minWeeks={20}
@@ -749,7 +851,7 @@ function App() {
                 disabled={!canGoPrev}
                 className={cn(
                   "p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800",
-                  !canGoPrev && "opacity-40 cursor-not-allowed"
+                  !canGoPrev && "opacity-40 cursor-not-allowed",
                 )}
               >
                 <ChevronLeft className="w-4 h-4 text-tertiary" />
@@ -761,7 +863,7 @@ function App() {
                   "text-sm font-medium px-2 py-1 rounded-lg",
                   isSelectedToday
                     ? "text-primary bg-primary-500/10"
-                    : "text-secondary hover:bg-gray-100 dark:hover:bg-gray-800"
+                    : "text-secondary hover:bg-gray-100 dark:hover:bg-gray-800",
                 )}
               >
                 {isSelectedToday ? "Today" : formatDisplayDate(selectedDate)}
@@ -772,7 +874,7 @@ function App() {
                 disabled={!canGoNext}
                 className={cn(
                   "p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800",
-                  !canGoNext && "opacity-40 cursor-not-allowed"
+                  !canGoNext && "opacity-40 cursor-not-allowed",
                 )}
               >
                 <ChevronRight className="w-4 h-4 text-tertiary" />
@@ -808,7 +910,7 @@ function App() {
                   task={task}
                   completionCount={getCompletionCountForTask(
                     task.id,
-                    selectedDate
+                    selectedDate,
                   )}
                   onComplete={handleCompleteTask}
                   onUncomplete={handleUncompleteTask}
@@ -849,7 +951,7 @@ function App() {
         {activeChallenges.length > 0 ? (
           activeChallenges.map((challenge) => {
             const challengeTasks = tasks.filter(
-              (t) => t.challenge_id === challenge.id
+              (t) => t.challenge_id === challenge.id,
             )
             const stats = getCompletionStats(challenge, challengeTasks)
             const isExpanded = expandedChallenges[challenge.id]
@@ -865,11 +967,11 @@ function App() {
               if (isTaskActiveOnDate(task, today)) {
                 todayTarget += task.frequency_count || 1
                 const taskCompletions = completions.filter(
-                  (c) => c.task_id === task.id && c.date === today
+                  (c) => c.task_id === task.id && c.date === today,
                 ).length
                 todayDone += Math.min(
                   taskCompletions,
-                  task.frequency_count || 1
+                  task.frequency_count || 1,
                 )
               }
             })
@@ -915,7 +1017,7 @@ function App() {
                             <span
                               className={cn(
                                 daysRemaining <= 3 &&
-                                  "text-task-orange font-medium"
+                                  "text-task-orange font-medium",
                               )}
                             >
                               {daysRemaining}d left
@@ -1030,7 +1132,7 @@ function App() {
 
   // Get currently selected challenge
   const selectedChallenge = activeChallenges.find(
-    (c) => c.id === selectedChallengeId
+    (c) => c.id === selectedChallengeId,
   )
 
   return (
@@ -1188,7 +1290,7 @@ function App() {
             tasks={tasks.filter((t) => t.challenge_id === editingChallenge.id)}
             completionStats={getCompletionStats(
               editingChallenge,
-              tasks.filter((t) => t.challenge_id === editingChallenge.id)
+              tasks.filter((t) => t.challenge_id === editingChallenge.id),
             )}
             onArchive={async () => {
               await archiveChallenge(editingChallenge.id)
